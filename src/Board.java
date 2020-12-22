@@ -1,10 +1,7 @@
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.geometry.VPos;
-import javafx.scene.ImageCursor;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
@@ -14,18 +11,17 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 import javax.sql.rowset.JdbcRowSet;
 import javax.sql.rowset.RowSetProvider;
 import java.awt.*;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.Stack;
 
@@ -46,7 +42,11 @@ public class Board extends Application{
     final String pSTitle = "Password too short", pSText = "Password must be at least 6 characters long.",
             regisTitle = "Successfully registered", regisText = "You've been successfully registered and logged in.",
             signInTitle = "Successfully logged in", signInText = "You've been successfully logged in.",
-            pWTitle = "Wrong password", pWText = "You've entered a wrong password, please try again.";
+            pWTitle = "Wrong password", pWText = "You've entered a wrong password, please try again.",
+            programExplained = "This program is a whiteboard.\nThe whiteboard is a canvas where multiple users can draw on at the same time.\n" +
+                    "First the user logs in\\registers in the database of the program, and then chooses to enter an existing lobby or create " +
+                    "one of their own.\nFrom there the user enters the whiteboard where they can draw freely on the board or add shapes and text" +
+                    " to it!.\nA user is also able to see other online users in the same lobby at the left side of the program.";
 
     private final String[] shapes = {"Brush", "Line", "Oval", "Rectangle", "Rounded Rectangle", "Text"};
     private final ComboBox<String> shapeChooser = new ComboBox<>();
@@ -56,25 +56,19 @@ public class Board extends Application{
     private boolean toFill = false, isRoundRectChosen = false, isLoggedIn = false;
     private Color color = Color.BLACK; // Default color is black.
 
-    private String addedLast = ""; // What was added last? Text or shape?
-
     // If the user isn't the host don't clear the board.
     private final boolean isHost = false;
 
-    private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900;
+    private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900, DEFAULT_ARC_VALUE = 10;
 
-    private String DATABASE_URL = "jdbc:postgresql:";
-    private String USERNAME;
-    private String PASSWORD;
+    private String DATABASE_URL = "jdbc:postgresql:", USERNAME, PASSWORD;
 
-    public static void main(String[] args) {
-        launch(args);
+    public static void main(String[] args) { launch(args); }
+
+    @Override
+    public void init() throws Exception {
+        //TODO: write client side here(connecting to a server and what to do once connected)
     }
-
-//    @Override
-//    public void init() throws Exception {
-//
-//    }
 
     @Override
     public void start(Stage stage) /* throws Exception */ {
@@ -89,12 +83,14 @@ public class Board extends Application{
         USERNAME = args.get(1);
         PASSWORD = args.get(2);
 
-        final int BOTTOM_MENU_SPACING = 10, LEFT_MENU_WIDTH = 200, RIGHT_MENU_WIDTH = 300, TOP_MENU_HEIGHT = 60,
-                BOTTOM_MENU_LEFT = 320, TOOLBAR_HEIGHT = 60;
+        final int GRID_MENU_SPACING = 10, LEFT_MENU_WIDTH = 200, RIGHT_MENU_WIDTH = 300, TOP_MENU_HEIGHT = 60,
+                BOTTOM_MENU_LEFT = 320, TOOLBAR_HEIGHT = 60, TEXT_WRAPPING_WIDTH = 125, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
+                DRAWING_TEXT_DIALOG_WINDOW_HEIGHT = 200, CHAT_MESSAGE_WRAPPING_WIDTH = 230, EXPLAIN_TEXT_WRAPPING_WIDTH = 280,
+                ROOM_SPACING = 20, BOTTOM_MENU_LOBBY_LEFT = 420, BOTTOM_MENU_LOBBY_SPACING = 350, LOGIN_WINDOW_WIDTH = 250, LOGIN_WINDOW_HEIGHT = 120;
 
         /********************************** Initializing objects ********************************/
 
-        shapeChooser.getItems().addAll(shapes);
+        shapeChooser.getItems().addAll(shapes); // Adding options to the scrollbar.
 
         Label shapeLabel = new Label("Shape:");
         shapeLabel.setStyle(CssLayouts.cssBottomLayoutText);
@@ -111,7 +107,7 @@ public class Board extends Application{
         fillShape.setStyle(CssLayouts.cssBottomLayoutText);
 
         // This line prevents text overflow.
-        userList.setWrappingWidth(125);
+        userList.setWrappingWidth(TEXT_WRAPPING_WIDTH);
 
     /******************************** Whiteboard scene ********************************/
 
@@ -119,14 +115,15 @@ public class Board extends Application{
 
         GridPane bottomMenu = new GridPane();
         bottomMenu.setStyle(CssLayouts.cssBottomLayout);
-        bottomMenu.setPadding(new Insets(BOTTOM_MENU_SPACING, BOTTOM_MENU_SPACING, BOTTOM_MENU_SPACING, BOTTOM_MENU_LEFT));
-        bottomMenu.setVgap(BOTTOM_MENU_SPACING);
-        bottomMenu.setHgap(BOTTOM_MENU_SPACING);
+        bottomMenu.setPadding(new Insets(GRID_MENU_SPACING, GRID_MENU_SPACING, GRID_MENU_SPACING, BOTTOM_MENU_LEFT));
+        bottomMenu.setVgap(GRID_MENU_SPACING);
+        bottomMenu.setHgap(GRID_MENU_SPACING);
 
         // Adding buttons to the bottom menu.
         Object[] bottomMenuItems = { shapeLabel, shapeChooser, colorChooser, fillShape, redo, undo, clear, backToLobby, exit};
         Button[] bottomMenuButtons = { redo, undo, clear, backToLobby, exit };
 
+        // Arranging them in a line.
         for(int i = 0; i < bottomMenuItems.length; i++) { GridPane.setConstraints((Node) bottomMenuItems[i], i, 0); }
         bottomMenu.getChildren().addAll(shapeLabel, shapeChooser, colorChooser, fillShape, redo, undo, clear, backToLobby, exit);
 
@@ -141,11 +138,27 @@ public class Board extends Application{
 
         /********************************** Building the right menu - chat box ********************************/
 
-        VBox rightMenu = new VBox();
-        rightMenu.getChildren().add(chat);
+        TextField chatMsg = new TextField(); // The user will write messages in here.
+        VBox chatMsgWrapper = new VBox(), chatWrapper = new VBox();
+        chatMsgWrapper.getChildren().add(chatMsg); // Container for the textfield.
+        chatWrapper.getChildren().add(chat); // Container for the chat block.
+        BorderPane rightMenu = new BorderPane(); // Right menu wrapper.
+        rightMenu.setBottom(chatMsgWrapper);
+        rightMenu.setTop(chatWrapper);
         setLayoutWidth(rightMenu, RIGHT_MENU_WIDTH);
 
-        /********************************** Building the top menu - I don't know what to put here yet ********************************/
+        chatMsg.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+            if(e.getCode() == KeyCode.ENTER) {
+                //TODO: display the message on chat screen then clear the text field.
+                //TODO: Make it so the message won't slide off screen(in the text box).
+                Text msg = new Text(chatMsg.getText());
+                msg.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
+                chatWrapper.getChildren().add(msg);
+                chatMsg.clear();
+            }
+        });
+
+        /********************************** Building the top menu - The title ********************************/
 
         HBox topMenu = new HBox();
         topMenu.getChildren().add(topM);
@@ -157,7 +170,7 @@ public class Board extends Application{
 
         HBox center = new HBox();
         Canvas canvas = new Canvas(CANVAS_WIDTH, CANVAS_HEIGHT);
-        center.setStyle(CssLayouts.cssLayout + ";\n-fx-background-color: white");
+        center.setStyle(CssLayouts.cssBorder);
         center.getChildren().add(canvas);
         gc = canvas.getGraphicsContext2D();
 
@@ -255,18 +268,21 @@ public class Board extends Application{
                     TextArea text = new TextArea();
                     Button btn = new Button("OK");
 
+                    // Dialog window wrapper.
                     BorderPane textBox = new BorderPane();
                     textBox.setCenter(text);
                     textBox.setBottom(btn);
                     BorderPane.setAlignment(btn, Pos.BOTTOM_CENTER);
 
+                    // Dialog window.
                     final Stage dialog = new Stage();
                     dialog.initModality(Modality.NONE);
                     dialog.initOwner(stage);
-                    Scene dialogScene = new Scene(textBox, 300, 200);
+                    Scene dialogScene = new Scene(textBox, DRAWING_TEXT_DIALOG_WINDOW_WIDTH, DRAWING_TEXT_DIALOG_WINDOW_HEIGHT);
                     dialog.setScene(dialogScene);
                     dialog.show();
 
+                    // Button functionality - Displaying the text on the canvas.
                     btn.setOnAction(eBtn -> {
                         TextBox t = new TextBox(e.getX(), e.getY(), color, text.getText());
                         myDraws.add(t);
@@ -274,8 +290,6 @@ public class Board extends Application{
                         dialog.close();
                     });
                 }
-                if(!shapeChooser.getValue().equals("Text")) { addedLast = "Shape"; }
-                else { addedLast = "Text"; }
             });
 
         /********************************** Drawing shapes event handler ********************************/
@@ -317,7 +331,6 @@ public class Board extends Application{
                     brush.addPoint(e.getX(), e.getY());
                     break;
             }
-//            if(!shapeChooser.getValue().equals("Brush")) { repaint(); }
             repaint();
             deletedDraws.clear();
         });
@@ -338,6 +351,7 @@ public class Board extends Application{
         whiteboardLayout.setRight(rightMenu);
         whiteboardLayout.setCenter(center);
 
+        // This code should make the window responsive.
         GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
         int width = gd.getDisplayMode().getWidth();
         int height = gd.getDisplayMode().getHeight() - TOOLBAR_HEIGHT;
@@ -359,36 +373,76 @@ public class Board extends Application{
         title.setStyle(CssLayouts.cssTopLayout);
         title.setMinHeight(TOP_MENU_HEIGHT);
 
+        /******************************** Left menu ********************************/
+
+        VBox lobbyLeftMenu = new VBox();
+        lobbyLeftMenu.setStyle(CssLayouts.cssBorder);
+        lobbyLeftMenu.setMaxWidth(LEFT_MENU_WIDTH);
+        lobbyLeftMenu.setMinWidth(LEFT_MENU_WIDTH);
+        //TODO: add a picture here of a brush maybe?
+
         /******************************** Right menu - info ********************************/
 
-        Text toKnow = new Text("Put a const String here that explains what this program is.");
-        toKnow.setWrappingWidth(250);
+        Text toKnow = new Text(programExplained);
+        toKnow.setStyle(CssLayouts.cssExplanationText);
+        toKnow.setWrappingWidth(EXPLAIN_TEXT_WRAPPING_WIDTH);
         VBox info = new VBox();
         info.getChildren().add(toKnow);
         setLayoutWidth(info, RIGHT_MENU_WIDTH);
+        //TODO: check out why the fuck it doesn't work as a whole string.
+        info.setStyle(info.getStyle() + ";\n-fx-padding: 6 0 0 6;");
 
         /******************************** Center menu ********************************/
 
+        //TODO: Make this code cleaner after coding lobby functionality.
+
+        HBox l1 = new HBox(), l2 = new HBox(), l3 = new HBox();
+        setLayoutWidth(l1, RIGHT_MENU_WIDTH);
+        setLayoutWidth(l2, RIGHT_MENU_WIDTH);
+        setLayoutWidth(l3, RIGHT_MENU_WIDTH);
         Button b = new Button("Click to draw");
         b.setOnAction(e -> {
             stage.setScene(whiteboard);
-           stage.setTitle("Whiteboard");
+            stage.setTitle("Whiteboard");
         });
+        GridPane lobbyCenter = new GridPane();
+
+        lobbyCenter.setPadding(new Insets(GRID_MENU_SPACING,GRID_MENU_SPACING,GRID_MENU_SPACING,ROOM_SPACING));
+        lobbyCenter.setHgap(8);
+        lobbyCenter.setVgap(10);
+
+        GridPane.setConstraints(l1, 0, 0);
+        GridPane.setConstraints(l2, 0, 1);
+        GridPane.setConstraints(l3, 0,2);
+        GridPane.setConstraints(b, 0, 3);
+
+        lobbyCenter.getChildren().addAll(l1, l2, l3, b);
+        lobbyCenter.setAlignment(Pos.CENTER);
+        lobbyCenter.setStyle(CssLayouts.cssBorder);
 
         /******************************** Bottom menu ********************************/
 
         Button createR = new Button("Create room");
         Button login = new Button("Log in");
         HBox bottomM = new HBox();
-        bottomM.setPadding(new Insets(BOTTOM_MENU_SPACING, BOTTOM_MENU_SPACING, BOTTOM_MENU_SPACING, BOTTOM_MENU_LEFT+100));
-        bottomM.setSpacing(350);
+        bottomM.setPadding(new Insets(GRID_MENU_SPACING, GRID_MENU_SPACING, GRID_MENU_SPACING, BOTTOM_MENU_LOBBY_LEFT));
+        bottomM.setSpacing(BOTTOM_MENU_LOBBY_SPACING);
         bottomM.getChildren().addAll(createR, login);
         bottomM.setStyle(CssLayouts.cssBottomLayout);
+
+        /******************************** Create room button event handler *******************************/
+
+        createR.setOnAction(e -> {
+            //TODO:
+            /* Create a Hbox that others can use to get into the new room. */
+            /* Make the room creator a host and transfer him to the new room. */
+        });
 
         /******************************** Login button event handler *******************************/
 
         login.setOnAction(e -> {
             if(isLoggedIn) return;
+
             Button confirm = new Button("Login/Register");
             TextField nickname = new TextField();
             PasswordField password = new PasswordField();
@@ -396,10 +450,11 @@ public class Board extends Application{
             Label pass = new Label("Password");
 
             GridPane loginWindow = new GridPane();
-            loginWindow.setPadding(new Insets(10,10,10,20));
-            loginWindow.setHgap(8);
-            loginWindow.setVgap(10);
+            loginWindow.setPadding(new Insets(GRID_MENU_SPACING,GRID_MENU_SPACING,GRID_MENU_SPACING,ROOM_SPACING));
+            loginWindow.setHgap(GRID_MENU_SPACING);
+            loginWindow.setVgap(GRID_MENU_SPACING);
 
+            // Arranging items on the window.
             GridPane.setConstraints(username, 0, 0);
             GridPane.setConstraints(nickname, 1, 0);
             GridPane.setConstraints(pass, 0, 1);
@@ -412,17 +467,24 @@ public class Board extends Application{
             signIn.setTitle("Login screen");
             signIn.initModality(Modality.NONE);
             signIn.initOwner(stage);
-            Scene loginScene = new Scene(loginWindow, 250, 120);
+            Scene loginScene = new Scene(loginWindow, LOGIN_WINDOW_WIDTH, LOGIN_WINDOW_HEIGHT);
             signIn.setScene(loginScene);
             signIn.show();
 
             confirm.setOnAction(e1 -> {
+                // Password must have at least 6 characters.
                 if(password.getText().length() < 6) {
                     displayAlert(pSTitle, pSText);
                 }
                 else {
                     connectToDatabase(nickname.getText(), password.getText());
-                    signIn.close();
+                    if(isLoggedIn) {
+                        Text helloMsg = new Text("Hello " + nickname.getText());
+                        helloMsg.setStyle(CssLayouts.cssBottomLayoutText);
+                        bottomM.getChildren().add(helloMsg);
+                        signIn.close();
+                        login.setVisible(false);
+                    }
                 }
             });
         });
@@ -431,8 +493,9 @@ public class Board extends Application{
 
         BorderPane lobbyLayout = new BorderPane();
         lobbyLayout.setTop(title);
+        lobbyLayout.setLeft(lobbyLeftMenu);
         lobbyLayout.setRight(info);
-        lobbyLayout.setCenter(b);
+        lobbyLayout.setCenter(lobbyCenter);
         lobbyLayout.setBottom(bottomM);
         lobby = new Scene(lobbyLayout, width, height);
 
@@ -453,9 +516,10 @@ public class Board extends Application{
         for (MyDraw myDraw : myDraws) { myDraw.Draw(gc); }
     }
 
+    // To prevent repeated code.
     private void setLayoutWidth(Pane p, int width) {
         if(p == null) { return; }
-        p.setStyle(CssLayouts.cssLayout);
+        p.setStyle(CssLayouts.cssBorder);
         p.setMaxWidth(width);
         p.setMinWidth(width);
     }
@@ -464,26 +528,24 @@ public class Board extends Application{
        Being used to bypass the user entering invalid input to the arcWidth and arcHeight properties. */
     public int isNumeric(String str) {
         try { return Integer.parseInt(str); }
-        catch (NumberFormatException e) { return 10; }
+        catch (NumberFormatException e) { return DEFAULT_ARC_VALUE; }
     }
 
     private void connectToDatabase(String username, String password) {
 
-        // connect to database books and query database
-        // RowSetProvider class implements RowSetFactory which can be used to create various types of RowSets
+        // connect to database books and query database.
+        // RowSetProvider class implements RowSetFactory which can be used to create various types of RowSets.
         try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
             // specify JdbcRowSet properties
             rowSet.setUrl(DATABASE_URL);
             rowSet.setUsername(USERNAME);
             rowSet.setPassword(PASSWORD);
+            // Get every user from the database to check if the client's username exists.
             rowSet.setCommand("SELECT * FROM users WHERE username = ?"); // set query
             rowSet.setString(1, username);
             rowSet.execute(); // execute query
 
-            /* if username doesn't exist yet, add it to the database.
-               if user exists, check if its entry matches the password. if not, tell the user he used a wrong password.
-               otherwise, log it in.*/
-
+            // Register the new user.
             if(!rowSet.next()) {
                 // add user to database.
                 rowSet.moveToInsertRow();
@@ -492,7 +554,6 @@ public class Board extends Application{
                 rowSet.insertRow();
                 isLoggedIn = true;
                 displayAlert(regisTitle, regisText);
-                // change layout to show the user is logged in and make a boolean that indicates the user can enter a lobby.
             }
             else {
                 // User exists but password is wrong.
@@ -503,12 +564,8 @@ public class Board extends Application{
                 else {
                     isLoggedIn = true;
                     displayAlert(signInTitle, signInText);
-                    // change layout to show the user is logged in and make a boolean that indicates the user can enter a lobby.
                 }
             }
-
-//            ResultSetMetaData metaData = rowSet.getMetaData();
-//            int numberOfColumns = metaData.getColumnCount();
         }
         catch (SQLException sqlException)
         {
@@ -518,6 +575,7 @@ public class Board extends Application{
 
     }
 
+    // To prevent repeated code.
     private void displayAlert(String title, String text) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
@@ -530,7 +588,6 @@ public class Board extends Application{
     //TODO: maybe add background image to the other menus.
     //TODO: Make a lobby scene.
     //TODO: backToLobby.setOnAction(); // Work on it after creating the lobby.
-    //TODO: Register users.
     //TODO: Make a functional chat box.
     //TODO: Create a server able to hold multiple rooms.
     //TODO: show the users in a room.

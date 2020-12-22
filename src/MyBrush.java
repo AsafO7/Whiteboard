@@ -1,8 +1,5 @@
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-
-//import jetbrains.mps.baseLanguage.collections.trove;
-
 import java.util.ArrayList;
 
 public class MyBrush extends MyDraw {
