@@ -1,10 +1,12 @@
+package whiteboard.client;
+
 import javafx.scene.paint.Color;
 
 /* This class represents complex shapes(Ovals, Rectangles and Rounded Rectangles).
  	Along with the basic traits of every shape, complex shapes are also represented by:
  	Width, Height and whether it's filled or not. */
 
-public abstract class MyComplexShape extends MyShape{
+public abstract class MyComplexShape extends MyShape {
     private double width, height;
     private final boolean isFull;
 

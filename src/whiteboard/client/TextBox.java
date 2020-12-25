@@ -1,7 +1,8 @@
-/* This class represents a text box you can put on a canvas. */
+package whiteboard.client;/* This class represents a text box you can put on a canvas. */
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
+import whiteboard.client.MyDraw;
 
 public class TextBox extends MyDraw {
     private final double x, y;

@@ -1,3 +1,5 @@
+package whiteboard.client;
+
 public class CssLayouts {
     public static final String cssBorder = "-fx-border-color: black;\n" +
             "-fx-border-width: 3;\n" +
@@ -21,4 +23,11 @@ public class CssLayouts {
     public static final String cssExplanationText = "-fx-font-weight: bold;\n" +
             "-fx-font-size: 16;\n" +
             "-fx-fill: #A040A0";
+
+    public static final String cssChatText = "-fx-font-size: 16;\n" +
+            "-fx-fill: #3B92D5";
+
+    public static final String cssLeftMenu = cssBorder + ";\n-fx-font-weight: bold;\n" +
+            "-fx-color: #E54487;\n" +
+            "-fx-font-size: 16";
 }

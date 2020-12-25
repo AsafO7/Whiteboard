@@ -1,9 +1,12 @@
+package whiteboard.client;
+
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
+import whiteboard.client.MyComplexShape;
 
 /* This class represents an Oval. */
 
-public class MyOval extends MyComplexShape{
+public class MyOval extends MyComplexShape {
 
     public MyOval(double x1, double y1, double w, double h, Color c, boolean fill) {
         super(x1,y1,w,h,c,fill); // Retrieving complex shapes' traits.

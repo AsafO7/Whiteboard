@@ -1,9 +1,11 @@
+package whiteboard.client;
+
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 
 /* This class represents a single Line. */
 
-public class MyLine extends MyShape{
+public class MyLine extends MyShape {
     private double x2, y2;
 
     public MyLine(double x1, double y1, double x2, double y2, Color c) {

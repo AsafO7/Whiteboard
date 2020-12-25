@@ -1,3 +1,5 @@
+package whiteboard.client;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -9,6 +11,7 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
@@ -37,12 +40,14 @@ public class Board extends Application{
 
     private Text userList = new Text("Here will be displayed the online users in the room."),
             chat = new Text("Here will be the chat"),
-            topM = new Text("Welcome to Whiteboard! Draw your minds out!");
+            topM = new Text("Welcome to Whiteboard! Draw your minds out!"),
+            user;
 
     final String pSTitle = "Password too short", pSText = "Password must be at least 6 characters long.",
             regisTitle = "Successfully registered", regisText = "You've been successfully registered and logged in.",
             signInTitle = "Successfully logged in", signInText = "You've been successfully logged in.",
             pWTitle = "Wrong password", pWText = "You've entered a wrong password, please try again.",
+            enterLobbyText = "You must be logged in before entering a lobby", emptyUsernameText = "Username can't be blank.",
             programExplained = "This program is a whiteboard.\nThe whiteboard is a canvas where multiple users can draw on at the same time.\n" +
                     "First the user logs in\\registers in the database of the program, and then chooses to enter an existing lobby or create " +
                     "one of their own.\nFrom there the user enters the whiteboard where they can draw freely on the board or add shapes and text" +
@@ -133,27 +138,35 @@ public class Board extends Application{
 
         // Online users in the room.
         VBox leftMenu = new VBox();
-        leftMenu.getChildren().add(userList);
-        setLayoutWidth(leftMenu, LEFT_MENU_WIDTH);
+        //leftMenu.getChildren().add(userList);
+        //setLayoutWidth(leftMenu, LEFT_MENU_WIDTH);
+        leftMenu.setMaxWidth(LEFT_MENU_WIDTH);
+        leftMenu.setMinWidth(LEFT_MENU_WIDTH);
 
         /********************************** Building the right menu - chat box ********************************/
 
         TextField chatMsg = new TextField(); // The user will write messages in here.
-        VBox chatMsgWrapper = new VBox(), chatWrapper = new VBox();
+        VBox chatMsgWrapper = new VBox(), pane = new VBox();
+        ScrollPane chatWrapper = new ScrollPane();
+        chatWrapper.setContent(pane);
+        chatWrapper.setStyle("-fx-background-color: white");
         chatMsgWrapper.getChildren().add(chatMsg); // Container for the textfield.
-        chatWrapper.getChildren().add(chat); // Container for the chat block.
         BorderPane rightMenu = new BorderPane(); // Right menu wrapper.
         rightMenu.setBottom(chatMsgWrapper);
-        rightMenu.setTop(chatWrapper);
+        rightMenu.setCenter(chatWrapper);
         setLayoutWidth(rightMenu, RIGHT_MENU_WIDTH);
 
+        // Event handler for sending a message.
         chatMsg.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
             if(e.getCode() == KeyCode.ENTER) {
+                if(chatMsg.getText().trim().length() == 0) { return; }
                 //TODO: display the message on chat screen then clear the text field.
                 //TODO: Make it so the message won't slide off screen(in the text box).
-                Text msg = new Text(chatMsg.getText());
+                Text msg = new Text(user.getText() + ": " + chatMsg.getText());
+                msg.setStyle(CssLayouts.cssChatText);
                 msg.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
-                chatWrapper.getChildren().add(msg);
+                pane.getChildren().add(msg);
+                chatWrapper.setVvalue(1.0); // Makes the scrollpane scroll to the bottom automatically.
                 chatMsg.clear();
             }
         });
@@ -216,6 +229,7 @@ public class Board extends Application{
                 /* backToLobby button functionality. */
                 if(e.getSource() == backToLobby) {
                     /* Maybe switch to a scene that takes care of lobby window */
+                    leftMenu.getChildren().remove(user);
                     stage.setScene(lobby);
                     stage.setTitle("Lobby");
                 }
@@ -402,14 +416,21 @@ public class Board extends Application{
         setLayoutWidth(l3, RIGHT_MENU_WIDTH);
         Button b = new Button("Click to draw");
         b.setOnAction(e -> {
-            stage.setScene(whiteboard);
-            stage.setTitle("Whiteboard");
+            if(isLoggedIn) {
+                //TODO: Style the text. Figure out how to change the fucking color.
+                leftMenu.setStyle(CssLayouts.cssLeftMenu + ";\n-fx-padding: 3 0 0 10;");
+                leftMenu.getChildren().add(user);
+                stage.setScene(whiteboard);
+                stage.setTitle("Whiteboard");
+            }
+            else { displayAlert("", enterLobbyText); }
         });
+
         GridPane lobbyCenter = new GridPane();
 
         lobbyCenter.setPadding(new Insets(GRID_MENU_SPACING,GRID_MENU_SPACING,GRID_MENU_SPACING,ROOM_SPACING));
-        lobbyCenter.setHgap(8);
-        lobbyCenter.setVgap(10);
+        lobbyCenter.setHgap(GRID_MENU_SPACING);
+        lobbyCenter.setVgap(GRID_MENU_SPACING);
 
         GridPane.setConstraints(l1, 0, 0);
         GridPane.setConstraints(l2, 0, 1);
@@ -472,8 +493,11 @@ public class Board extends Application{
             signIn.show();
 
             confirm.setOnAction(e1 -> {
+                if(nickname.getText().trim().length() == 0) {
+                    displayAlert("", emptyUsernameText);
+                }
                 // Password must have at least 6 characters.
-                if(password.getText().length() < 6) {
+                else if(password.getText().length() < 6) {
                     displayAlert(pSTitle, pSText);
                 }
                 else {
@@ -553,6 +577,7 @@ public class Board extends Application{
                 rowSet.updateString("password", password);
                 rowSet.insertRow();
                 isLoggedIn = true;
+                user = new Text(username);
                 displayAlert(regisTitle, regisText);
             }
             else {
@@ -563,6 +588,7 @@ public class Board extends Application{
                 // User logged in.
                 else {
                     isLoggedIn = true;
+                    user = new Text(username);
                     displayAlert(signInTitle, signInText);
                 }
             }
@@ -572,7 +598,6 @@ public class Board extends Application{
             sqlException.printStackTrace();
             System.exit(1);
         }
-
     }
 
     // To prevent repeated code.
@@ -584,6 +609,7 @@ public class Board extends Application{
         alert.showAndWait();
     }
 
+    //TODO: Make the brush have different thickness.
     //TODO: make the cursor look like a pen.
     //TODO: maybe add background image to the other menus.
     //TODO: Make a lobby scene.
