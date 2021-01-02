@@ -21,8 +21,9 @@ public class Server {
             srv = new ServerSocket(Connection.PORT);
             System.out.println("Server started");
 
-            while(true) {
+            while(true) { // Keep waiting for a new client.
                 Socket socket = srv.accept();
+                System.out.println("Session with " + socket.toString() + "Started");
                 try {
                     handler = new Handler(socket, rooms);
                     handlerThread = new Thread(handler);

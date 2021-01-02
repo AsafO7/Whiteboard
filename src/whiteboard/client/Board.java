@@ -21,11 +21,18 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import whiteboard.Packet;
 
 import javax.sql.rowset.JdbcRowSet;
 import javax.sql.rowset.RowSetProvider;
 import java.awt.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Stack;
 
 public class Board extends Application{
@@ -159,6 +166,7 @@ public class Board extends Application{
         // Event handler for sending a message.
         chatMsg.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
             if(e.getCode() == KeyCode.ENTER) {
+                // Case of empty message.
                 if(chatMsg.getText().trim().length() == 0) { return; }
                 //TODO: display the message on chat screen then clear the text field.
                 //TODO: Make it so the message won't slide off screen(in the text box).
@@ -426,20 +434,28 @@ public class Board extends Application{
             else { displayAlert("", enterLobbyText); }
         });
 
-        GridPane lobbyCenter = new GridPane();
+        ScrollPane lobbyCenter = new ScrollPane();
+        VBox lobbies = new VBox();
+        lobbyCenter.setContent(lobbies);
+        lobbies.getChildren().add(b);
+        lobbies.setAlignment(Pos.CENTER);
 
-        lobbyCenter.setPadding(new Insets(GRID_MENU_SPACING,GRID_MENU_SPACING,GRID_MENU_SPACING,ROOM_SPACING));
-        lobbyCenter.setHgap(GRID_MENU_SPACING);
-        lobbyCenter.setVgap(GRID_MENU_SPACING);
 
-        GridPane.setConstraints(l1, 0, 0);
-        GridPane.setConstraints(l2, 0, 1);
-        GridPane.setConstraints(l3, 0,2);
-        GridPane.setConstraints(b, 0, 3);
+        //lobbyCenter.setPadding(new Insets(GRID_MENU_SPACING,GRID_MENU_SPACING,GRID_MENU_SPACING,ROOM_SPACING));
+        //lobbyCenter.setHgap(GRID_MENU_SPACING);
+        //lobbyCenter.setVgap(GRID_MENU_SPACING);
 
-        lobbyCenter.getChildren().addAll(l1, l2, l3, b);
-        lobbyCenter.setAlignment(Pos.CENTER);
-        lobbyCenter.setStyle(CssLayouts.cssBorder);
+//        GridPane.setConstraints(l1, 0, 0);
+//        GridPane.setConstraints(l2, 0, 1);
+//        GridPane.setConstraints(l3, 0,2);
+//        GridPane.setConstraints(b, 0, 3);
+
+        //lobbyCenter.getChildren().addAll(l1, l2, l3, b);
+        //lobbyCenter.setAlignment(Pos.CENTER);
+        lobbies.setStyle(CssLayouts.cssBorder);
+
+        //TODO: add event listener to lobbyCenter that when an event occurs the room list will be displayed.
+        //TODO: program the communication between Board to Input to Server.
 
         /******************************** Bottom menu ********************************/
 
@@ -457,6 +473,17 @@ public class Board extends Application{
             //TODO:
             /* Create a Hbox that others can use to get into the new room. */
             /* Make the room creator a host and transfer him to the new room. */
+            TextInputDialog roomName = new TextInputDialog();
+            roomName.setHeaderText("Enter room name");
+            roomName.setTitle("Create new room");
+            roomName.show();
+            try {
+                Socket socket = new Socket("localhost", 5555);
+                ObjectOutputStream out = null;
+                out = new ObjectOutputStream(socket.getOutputStream());
+                out.writeObject(roomName.getContentText());
+            }
+            catch (Exception exception) { exception.printStackTrace(); }
         });
 
         /******************************** Login button event handler *******************************/
@@ -519,18 +546,23 @@ public class Board extends Application{
         lobbyLayout.setTop(title);
         lobbyLayout.setLeft(lobbyLeftMenu);
         lobbyLayout.setRight(info);
-        lobbyLayout.setCenter(lobbyCenter);
+        lobbyLayout.setCenter(lobbies);
         lobbyLayout.setBottom(bottomM);
         lobby = new Scene(lobbyLayout, width, height);
 
     /******************************** Lobby scene - End ********************************/
 
-        /******************************** Setting the stage ********************************/
+    /********************************** Client side ************************************/
+
+
+
+    /******************************** Setting the stage ********************************/
 
         stage.setTitle("Lobby");
         stage.setScene(lobby);
         stage.show();
     }
+
 
     /******************************** Functions ********************************/
 
@@ -609,6 +641,7 @@ public class Board extends Application{
         alert.showAndWait();
     }
 
+    //TODO: check if the lobbies list is scrollable.
     //TODO: Make the brush have different thickness.
     //TODO: make the cursor look like a pen.
     //TODO: maybe add background image to the other menus.

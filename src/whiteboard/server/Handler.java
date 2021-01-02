@@ -42,9 +42,9 @@ public class Handler implements Runnable {
                 switch (type) {
                     case GET_ROOMS:
                         this.handleGetRooms();
+                        out.writeObject(rooms); // Sending the room list back to the client.
                     default:
-                        throw new Exception("Error: server received "
-                                + "unexpected packet type");
+                        throw new Exception("Error: server received " + "unexpected packet type");
                 }
             }
         }catch (Exception e) {

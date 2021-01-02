@@ -7,7 +7,7 @@ public class Packet implements Serializable {
     private Type type;
     private Object obj;
 
-    public enum Type {
+    public enum Type { // List of events
         GET_ROOMS,
         ROOMS_NAMES,
     }
