@@ -11,8 +11,8 @@ public class MyRoundRect extends MyComplexShape {
     private final int arcHeight;
     private final int arcWidth;
 
-    public MyRoundRect(double x1, double y1, double w, double h, Color c, boolean fill, int arcW, int arcH) {
-        super(x1,y1,w,h,c,fill); // Retrieving complex shapes' traits.
+    public MyRoundRect(double x1, double y1, double w, double h, Color c, double thickness, boolean fill, int arcW, int arcH) {
+        super(x1,y1,w,h,c,thickness,fill); // Retrieving complex shapes' traits.
 
         /* These two traits will determine how rounded the rectangle will be. */
         this.arcWidth = arcW;
@@ -27,6 +27,7 @@ public class MyRoundRect extends MyComplexShape {
         y1 = Math.min(this.getY1(), this.getY1() + this.getHeight());
         x2 = Math.max(this.getX1(), this.getX1() + this.getWidth());
         y2 = Math.max(this.getY1(), this.getY1() + this.getHeight());
+        g.setLineWidth(getThickness());
         g.setFill(this.getColor());
         g.setStroke(this.getColor());
         if(this.toFill()) {

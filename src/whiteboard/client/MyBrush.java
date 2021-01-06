@@ -11,8 +11,8 @@ public class MyBrush extends MyDraw {
     private final ArrayList<Double> xPoints = new ArrayList<>();
     private final ArrayList<Double> yPoints = new ArrayList<>();
 
-    public MyBrush(double x, double y, Color c, boolean fill) {
-        super(c);
+    public MyBrush(double x, double y, Color c, double thickness, boolean fill) {
+        super(c, thickness);
         this.fill = fill;
         this.xPoints.add(x);
         this.yPoints.add(y);
@@ -48,6 +48,7 @@ public class MyBrush extends MyDraw {
     @Override
     public void Draw(GraphicsContext g) {
         /* you can loop but it's not efficient */
+        g.setLineWidth(getThickness());
         g.setStroke(this.getColor());
         g.setFill(this.getColor());
         if (this.fill) {

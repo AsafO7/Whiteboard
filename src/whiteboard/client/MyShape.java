@@ -9,8 +9,8 @@ public abstract class MyShape extends MyDraw {
     private double x1;
     private double y1;
 
-    public MyShape(double x1, double y1, javafx.scene.paint.Color c) {
-        super(c);
+    public MyShape(double x1, double y1, javafx.scene.paint.Color c, double thickness) {
+        super(c, thickness);
         this.x1 = x1;
         this.y1 = y1;
     }

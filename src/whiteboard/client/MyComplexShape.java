@@ -10,8 +10,8 @@ public abstract class MyComplexShape extends MyShape {
     private double width, height;
     private final boolean isFull;
 
-    public MyComplexShape(double x1, double y1, double w, double h, Color c, boolean fill) {
-        super(x1,y1,c); // Retrieving basic traits.
+    public MyComplexShape(double x1, double y1, double w, double h, Color c, double thickness, boolean fill) {
+        super(x1,y1,c, thickness); // Retrieving basic traits.
         this.width = w;
         this.height = h;
         this.isFull = fill;

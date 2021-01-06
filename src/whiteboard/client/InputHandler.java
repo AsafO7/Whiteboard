@@ -1,3 +1,5 @@
+package whiteboard.client;
+
 import javafx.application.Platform;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
@@ -9,11 +11,11 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Input implements Runnable{
+public class InputHandler implements Runnable{
 
     private final VBox lobby;
 
-    public Input(VBox currentLobby) {
+    public InputHandler(VBox currentLobby) {
         lobby = currentLobby;
     }
     @Override
@@ -36,8 +38,6 @@ public class Input implements Runnable{
             }
         }
         catch (Exception e) { e.printStackTrace(); }
-
-
     }
 
     /* This method will update the UI with the lobby rooms. */

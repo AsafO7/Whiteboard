@@ -2,9 +2,11 @@ package whiteboard.client;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -14,6 +16,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
@@ -26,6 +30,7 @@ import whiteboard.Packet;
 import javax.sql.rowset.JdbcRowSet;
 import javax.sql.rowset.RowSetProvider;
 import java.awt.*;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -42,6 +47,8 @@ public class Board extends Application{
     private Scene whiteboard, lobby;
 
     private Button redo, undo, clear, backToLobby, exit;
+
+    private Slider thickness;
 
     private ColorPicker colorChooser;
 
@@ -83,7 +90,7 @@ public class Board extends Application{
     }
 
     @Override
-    public void start(Stage stage) /* throws Exception */ {
+    public void start(Stage stage) throws IOException /* throws Exception */ {
 
         java.util.List<String> args = getParameters().getRaw();
         if (args.size() != 3) {
@@ -96,19 +103,26 @@ public class Board extends Application{
         PASSWORD = args.get(2);
 
         final int GRID_MENU_SPACING = 10, LEFT_MENU_WIDTH = 200, RIGHT_MENU_WIDTH = 300, TOP_MENU_HEIGHT = 60,
-                BOTTOM_MENU_LEFT = 320, TOOLBAR_HEIGHT = 60, TEXT_WRAPPING_WIDTH = 125, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
+                BOTTOM_MENU_LEFT = 220, TOOLBAR_HEIGHT = 60, TEXT_WRAPPING_WIDTH = 125, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
                 DRAWING_TEXT_DIALOG_WINDOW_HEIGHT = 200, CHAT_MESSAGE_WRAPPING_WIDTH = 230, EXPLAIN_TEXT_WRAPPING_WIDTH = 280,
-                ROOM_SPACING = 20, BOTTOM_MENU_LOBBY_LEFT = 420, BOTTOM_MENU_LOBBY_SPACING = 350, LOGIN_WINDOW_WIDTH = 250, LOGIN_WINDOW_HEIGHT = 120;
+                ROOM_SPACING = 20, BOTTOM_MENU_LOBBY_LEFT = 420, BOTTOM_MENU_LOBBY_SPACING = 350, LOGIN_WINDOW_WIDTH = 250, LOGIN_WINDOW_HEIGHT = 120,
+                MIN_LINE_THICKNESS = 1, MAX_LINE_THICKNESS = 15;
 
         /********************************** Initializing objects ********************************/
 
         shapeChooser.getItems().addAll(shapes); // Adding options to the scrollbar.
 
         Label shapeLabel = new Label("Shape:");
+        Label thicknessLabel = new Label("Thickness:");
         shapeLabel.setStyle(CssLayouts.cssBottomLayoutText);
+        thicknessLabel.setStyle(CssLayouts.cssBottomLayoutText);
 
         colorChooser = new ColorPicker();
         colorChooser.setValue(color);
+        thickness = new Slider();
+        thickness.setMin(MIN_LINE_THICKNESS);
+        thickness.setMax(MAX_LINE_THICKNESS);
+        thickness.setShowTickMarks(true);
         redo = new Button("Redo");
         undo = new Button("Undo");
         clear = new Button("Clear");
@@ -132,12 +146,12 @@ public class Board extends Application{
         bottomMenu.setHgap(GRID_MENU_SPACING);
 
         // Adding buttons to the bottom menu.
-        Object[] bottomMenuItems = { shapeLabel, shapeChooser, colorChooser, fillShape, redo, undo, clear, backToLobby, exit};
+        Object[] bottomMenuItems = { shapeLabel, shapeChooser, colorChooser, thicknessLabel, thickness, fillShape, redo, undo, clear, backToLobby, exit};
         Button[] bottomMenuButtons = { redo, undo, clear, backToLobby, exit };
 
         // Arranging them in a line.
         for(int i = 0; i < bottomMenuItems.length; i++) { GridPane.setConstraints((Node) bottomMenuItems[i], i, 0); }
-        bottomMenu.getChildren().addAll(shapeLabel, shapeChooser, colorChooser, fillShape, redo, undo, clear, backToLobby, exit);
+        bottomMenu.getChildren().addAll(shapeLabel, shapeChooser, colorChooser, thicknessLabel, thickness, fillShape, redo, undo, clear, backToLobby, exit);
 
         shapeChooser.setValue(shapes[0]);
 
@@ -157,6 +171,7 @@ public class Board extends Application{
         ScrollPane chatWrapper = new ScrollPane();
         chatWrapper.setContent(pane);
         chatWrapper.setStyle("-fx-background-color: white");
+        chatMsgWrapper.setStyle(CssLayouts.cssBorder);
         chatMsgWrapper.getChildren().add(chatMsg); // Container for the textfield.
         BorderPane rightMenu = new BorderPane(); // Right menu wrapper.
         rightMenu.setBottom(chatMsgWrapper);
@@ -200,7 +215,7 @@ public class Board extends Application{
         /* Picking a new color */
         colorChooser.setOnAction(e -> {
             color = colorChooser.getValue();
-            gc.setStroke(color);
+            //gc.setStroke(color);
         });
 
         /* Should the shape be filled? */
@@ -256,15 +271,15 @@ public class Board extends Application{
             /* Creating the shape to be drawn next. */
             switch(shapeChooser.getValue()) {
                 case "Line":
-                    myDraws.add(new MyLine(e.getX(),e.getY(),e.getX(),e.getY(),color));
+                    myDraws.add(new MyLine(e.getX(),e.getY(),e.getX(),e.getY(),color, thickness.getValue()));
                     isRoundRectChosen = false;
                     break;
                 case "Oval":
-                    myDraws.add(new MyOval(e.getX(),e.getY(),e.getX(),e.getY(),color,toFill));
+                    myDraws.add(new MyOval(e.getX(),e.getY(),e.getX(),e.getY(),color, thickness.getValue(), toFill));
                     isRoundRectChosen = false;
                     break;
                 case "Rectangle":
-                    myDraws.add(new MyRect(e.getX(),e.getY(),e.getX(),e.getY(),color,toFill));
+                    myDraws.add(new MyRect(e.getX(),e.getY(),e.getX(),e.getY(),color, thickness.getValue(), toFill));
                     isRoundRectChosen = false;
                     break;
                 case "Rounded Rectangle":
@@ -279,12 +294,12 @@ public class Board extends Application{
 				/* The user will have to draw another shape in order to change the values of the arcs. */
                     else {
                         int arcWidth = isNumeric(arcW.getContentText()), arcHeight = isNumeric(arcH.getContentText());
-                        myDraws.add(new MyRoundRect(e.getX(),e.getY(),e.getX(),e.getY(),color, toFill,arcWidth,arcHeight));
+                        myDraws.add(new MyRoundRect(e.getX(),e.getY(),e.getX(),e.getY(),color, thickness.getValue(), toFill,arcWidth,arcHeight));
                     }
                     isRoundRectChosen = true;
                     break;
                 case "Brush": // Free drawing.
-                    myDraws.add(new MyBrush(e.getX(), e.getY(), color, toFill));
+                    myDraws.add(new MyBrush(e.getX(), e.getY(), color, thickness.getValue(), toFill));
                     break;
                 case "Text": // Displaying text on the canvas.
                     TextArea text = new TextArea();
@@ -373,7 +388,7 @@ public class Board extends Application{
         whiteboardLayout.setRight(rightMenu);
         whiteboardLayout.setCenter(center);
 
-        // This code should make the window responsive.
+        // This code should make the window adaptable to all screen sizes.
         GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
         int width = gd.getDisplayMode().getWidth();
         int height = gd.getDisplayMode().getHeight() - TOOLBAR_HEIGHT;
@@ -401,6 +416,9 @@ public class Board extends Application{
         lobbyLeftMenu.setStyle(CssLayouts.cssBorder);
         lobbyLeftMenu.setMaxWidth(LEFT_MENU_WIDTH);
         lobbyLeftMenu.setMinWidth(LEFT_MENU_WIDTH);
+//        Image brush = new Image("paint-1266212_640.png");
+//        ImageView leftMenuImage = new ImageView(brush);
+//        lobbyLeftMenu.getChildren().add(leftMenuImage);
         //TODO: add a picture here of a brush maybe?
 
         /******************************** Right menu - info ********************************/
@@ -471,7 +489,7 @@ public class Board extends Application{
 
         createR.setOnAction(e -> {
             //TODO:
-            /* Create a Hbox that others can use to get into the new room. */
+            /* Make sure the user is logged in before creating a room. */
             /* Make the room creator a host and transfer him to the new room. */
             TextInputDialog roomName = new TextInputDialog();
             roomName.setHeaderText("Enter room name");
@@ -554,13 +572,19 @@ public class Board extends Application{
 
     /********************************** Client side ************************************/
 
-
+//    InputHandler input = new InputHandler(lobbies);
+//    Thread thread = new Thread(input);
+//    thread.start();
 
     /******************************** Setting the stage ********************************/
 
         stage.setTitle("Lobby");
         stage.setScene(lobby);
+        stage.sizeToScene();
         stage.show();
+        stage.setMinWidth(stage.getWidth());
+        stage.setMinHeight(stage.getHeight());
+
     }
 
 

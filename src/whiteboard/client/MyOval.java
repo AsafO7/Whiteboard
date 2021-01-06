@@ -8,8 +8,8 @@ import whiteboard.client.MyComplexShape;
 
 public class MyOval extends MyComplexShape {
 
-    public MyOval(double x1, double y1, double w, double h, Color c, boolean fill) {
-        super(x1,y1,w,h,c,fill); // Retrieving complex shapes' traits.
+    public MyOval(double x1, double y1, double w, double h, Color c, double thickness, boolean fill) {
+        super(x1,y1,w,h,c,thickness,fill); // Retrieving complex shapes' traits.
     }
 
     public void Draw(GraphicsContext g) {
@@ -22,6 +22,7 @@ public class MyOval extends MyComplexShape {
         y2 = Math.max(this.getY1(), this.getY1() + this.getHeight());
         g.setFill(this.getColor());
         g.setStroke(this.getColor());
+        g.setLineWidth(this.getThickness());
         if(this.toFill()) {
             g.fillOval(x1, y1, x2 - x1, y2 - y1);
         }

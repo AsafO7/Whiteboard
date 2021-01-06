@@ -24,7 +24,7 @@ public class CssLayouts {
             "-fx-font-size: 16;\n" +
             "-fx-fill: #A040A0";
 
-    public static final String cssChatText = "-fx-font-size: 16;\n" +
+    public static final String cssChatText = "-fx-font-size: 14;\n" +
             "-fx-fill: #3B92D5";
 
     public static final String cssLeftMenu = cssBorder + ";\n-fx-font-weight: bold;\n" +
