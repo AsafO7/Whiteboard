@@ -2,63 +2,56 @@ package whiteboard.server;
 
 import whiteboard.Packet;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Handler implements Runnable {
 
     private final Socket socket;
-    private final ConcurrentLinkedQueue<Packet> outQueue;
+    private final BlockingQueue<Packet> outQueue = new LinkedBlockingQueue<Packet>();
     private final List<Room> rooms;
     private Thread OutputHandlerThread;
     private OutputHandler outputHandler;
 
     public Handler(Socket socket, List<Room> rooms) {
         this.socket = socket;
-        this.outQueue = new ConcurrentLinkedQueue<Packet>();
         this.rooms = rooms;
     }
 
     @Override
     public void run() {
-        ObjectOutputStream out = null;
         ObjectInputStream in = null;
         try {
-            out = new ObjectOutputStream(socket.getOutputStream());
             in = new ObjectInputStream(socket.getInputStream());
 
-            outputHandler = new OutputHandler(out, outQueue);
+            outputHandler = new OutputHandler(socket, outQueue);
             OutputHandlerThread = new Thread(outputHandler);
             OutputHandlerThread.start();
 
             while (true) {
-                Packet packet = (Packet)in.readObject();
+                Packet packet = (Packet) in.readObject();
                 Packet.Type type = packet.getType();
                 switch (type) {
                     case GET_ROOMS:
                         this.handleGetRooms();
-                        out.writeObject(rooms); // Sending the room list back to the client.
+                        break;
+                    case CREATE_ROOM:
+                        this.handleCreateRoom(packet.getRoomName());
+                        break;
                     default:
-                        throw new Exception("Error: server received " + "unexpected packet type");
+                        throw new Exception("Error: server received " + packet.getType() + " unexpected packet type");
                 }
             }
         }catch (Exception e) {
             e.printStackTrace();
         }
         finally {
-            if (out != null)
-            {
-                try {
-                    out.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
             if (in != null) {
                 try {
                     in.close();
@@ -76,6 +69,25 @@ public class Handler implements Runnable {
         }
     }
 
+    private void handleCreateRoom(String name) {
+        boolean answer = true;
+        synchronized (rooms) {
+            for (Room room : rooms) {
+                if (room.getName().equals(name)) {
+                    answer = false;
+                    break;
+                }
+            }
+            if(answer) { rooms.add(new Room(name)); }
+        }
+        try {
+            outQueue.put(Packet.ackCreateRoom(answer));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        handleGetRooms();
+    }
+
     private void handleGetRooms() {
         List<String> roomsNames= new ArrayList<String>();
         synchronized (rooms) {
@@ -83,6 +95,11 @@ public class Handler implements Runnable {
                 roomsNames.add(room.getName());
             }
         }
-        outQueue.add(Packet.createRoomsNames(roomsNames));
+//        roomsNames.add(String.valueOf(ThreadLocalRandom.current().nextInt(1, 1000 + 1)));
+        try {
+            outQueue.put(Packet.createRoomsNames(roomsNames));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

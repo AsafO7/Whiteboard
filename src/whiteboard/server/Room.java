@@ -1,6 +1,8 @@
 package whiteboard.server;
 
-public class Room {
+import java.io.Serializable;
+
+public class Room implements Serializable {
     private String name;
 
     public Room(String name) {

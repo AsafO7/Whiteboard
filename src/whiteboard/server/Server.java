@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -14,6 +15,11 @@ public class Server {
     private static Thread handlerThread;
 
     private static List<Room> rooms = Collections.synchronizedList(new ArrayList<Room>());
+
+//    //    For the purpose of testing "Refresh Rooms" on the client:
+//    private static List<Room> rooms = Collections.synchronizedList(new ArrayList<Room>(Arrays.asList(
+//            new Room("rave"), new Room("asaf"), new Room("tamik")
+//    )));
 
     public static void main(String[] args) {
         ServerSocket srv = null;
