@@ -20,9 +20,13 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import whiteboard.Packet;
 
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Stack;
+import java.util.concurrent.BlockingQueue;
 
 public class WhiteboardRoom {
 
@@ -34,8 +38,9 @@ public class WhiteboardRoom {
 
     private ColorPicker colorChooser;
 
-    private final Text userList = new Text("Here will be displayed the online users in the room."),
+    private final Text /* userList = new Text("Here will be displayed the online users in the room."),*/
             topM = new Text("Welcome to Whiteboard! Draw your minds out!");
+    private List<Text> users = new ArrayList<>();
 
     private final String[] shapes = {"Brush", "Line", "Oval", "Rectangle", "Rounded Rectangle", "Text"};
     private final ComboBox<String> shapeChooser = new ComboBox<>();
@@ -45,15 +50,20 @@ public class WhiteboardRoom {
     private boolean toFill = false, isRoundRectChosen = false;
     private Color color = Color.BLACK; // Default color is black.
 
+    private VBox chatBox = new VBox();
+
     // If the user isn't the host don't clear the board.
-    private final boolean isHost = false;
+    private boolean isHost = false;
 
     private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900;
 
-    private String name;
-    public WhiteboardRoom(String name) { this.name = name; }
+    private String host;
+    public WhiteboardRoom(String host) {
+        this.host = host;
+        isHost = true;
+    }
 
-    public Scene showBoard(Stage stage, Text user, Scene lobby) {
+    public Scene showBoard(Stage stage, Text user, Scene lobby, BlockingQueue<Packet> outQueue) {
 
             final int GRID_MENU_SPACING = 10, LEFT_MENU_WIDTH = 200, RIGHT_MENU_WIDTH = 300, TOP_MENU_HEIGHT = 60,
                     BOTTOM_MENU_LEFT = 220, TOOLBAR_HEIGHT = 60, TEXT_WRAPPING_WIDTH = 125, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
@@ -84,8 +94,9 @@ public class WhiteboardRoom {
             CheckBox fillShape = new CheckBox("Fill Shape");
             fillShape.setStyle(CssLayouts.cssBottomLayoutText);
 
+            users.add(user);
             // This line prevents text overflow.
-            userList.setWrappingWidth(TEXT_WRAPPING_WIDTH);
+            users.get(users.size() - 1).setWrappingWidth(TEXT_WRAPPING_WIDTH);
 
             /******************************** Whiteboard scene ********************************/
 
@@ -113,39 +124,47 @@ public class WhiteboardRoom {
 
             // Online users in the room.
             VBox leftMenu = new VBox();
-            //leftMenu.getChildren().add(userList);
-            //setLayoutWidth(leftMenu, LEFT_MENU_WIDTH);
             leftMenu.setMaxWidth(LEFT_MENU_WIDTH);
             leftMenu.setMinWidth(LEFT_MENU_WIDTH);
             leftMenu.setStyle(CssLayouts.cssLeftMenu + ";\n-fx-padding: 3 0 0 10;");
-            leftMenu.getChildren().add(user);
+            for(int i = 0; i < users.size(); i++) {
+                leftMenu.getChildren().add(users.get(i));
+            }
+            //leftMenu.getChildren().add(user);
 
             /********************************** Building the right menu - chat box ********************************/
 
             TextField chatMsg = new TextField(); // The user will write messages in here.
-            VBox chatMsgWrapper = new VBox(), pane = new VBox();
+            VBox chatMsgWrapper = new VBox();
             ScrollPane chatWrapper = new ScrollPane();
-            chatWrapper.setContent(pane);
+            chatWrapper.setContent(chatBox);
             chatWrapper.setStyle("-fx-background-color: white");
             chatMsgWrapper.setStyle(CssLayouts.cssBorder);
+            chatMsgWrapper.setPrefHeight(20);
             chatMsgWrapper.getChildren().add(chatMsg); // Container for the textfield.
             BorderPane rightMenu = new BorderPane(); // Right menu wrapper.
             rightMenu.setBottom(chatMsgWrapper);
             rightMenu.setCenter(chatWrapper);
             setLayoutWidth(rightMenu, RIGHT_MENU_WIDTH);
+            chatWrapper.setVvalue(1.0); // Makes the scrollpane scroll to the bottom automatically.
 
             // Event handler for sending a message.
             chatMsg.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
                 if(e.getCode() == KeyCode.ENTER) {
                     // Case of empty message.
                     if(chatMsg.getText().trim().length() == 0) { return; }
-                    //TODO: display the message on chat screen then clear the text field.
                     //TODO: Make it so the message won't slide off screen(in the text box).
-                    Text msg = new Text(user.getText() + ": " + chatMsg.getText());
-                    msg.setStyle(CssLayouts.cssChatText);
-                    msg.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
-                    pane.getChildren().add(msg);
-                    chatWrapper.setVvalue(1.0); // Makes the scrollpane scroll to the bottom automatically.
+                    //Text msg = new Text(user.getText() + ": " + chatMsg.getText());
+                    //msg.setStyle(CssLayouts.cssChatText);
+                    //msg.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
+
+                    try {
+                        outQueue.put(Packet.sendMessage(chatMsg.getText()));
+                    } catch (InterruptedException interruptedException) {
+                        interruptedException.printStackTrace();
+                    }
+
+                    //chatBox.getChildren().add(msg);
                     chatMsg.clear();
                 }
             });
@@ -199,15 +218,21 @@ public class WhiteboardRoom {
 
                     /* clear button functionality. */
                     if (e.getSource() == clear) {
-                        myDraws.clear();
-                        deletedDraws.clear();
-                        gc.clearRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+                        if(isHost) {
+                            myDraws.clear();
+                            deletedDraws.clear();
+                            gc.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                        }
                     }
 
                     /* backToLobby button functionality. */
                     if(e.getSource() == backToLobby) {
                         /* Maybe switch to a scene that takes care of lobby window */
                         leftMenu.getChildren().remove(user);
+                        users.remove(user);
+                        if(isHost) { isHost = false; }
+                        //TODO: make the next user in users the host.
+                        chatBox.getChildren().clear();
                         stage.setScene(lobby);
                         stage.setTitle("Lobby");
                     }
@@ -354,7 +379,7 @@ public class WhiteboardRoom {
     }
 
     /* Repaints the canvas */
-    private void repaint() {
+    public void repaint() {
         gc.clearRect(0, 0, CANVAS_WIDTH,CANVAS_HEIGHT);
         for (MyDraw myDraw : myDraws) { myDraw.Draw(gc); }
     }
@@ -375,4 +400,11 @@ public class WhiteboardRoom {
             int DEFAULT_ARC_VALUE = 10;
             return DEFAULT_ARC_VALUE; }
     }
+
+    public VBox getChatBox() {
+        return chatBox;
+    }
+
+    //TODO: the user needs to receive all the drawings in the room prior to his arrival.
+    //TODO: the user needs to receive drawings from other users that are currently being drawn.
 }

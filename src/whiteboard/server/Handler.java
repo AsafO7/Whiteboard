@@ -1,5 +1,6 @@
 package whiteboard.server;
 
+import javafx.scene.text.Text;
 import whiteboard.Packet;
 
 import java.io.*;
@@ -7,9 +8,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class Handler implements Runnable {
 
@@ -43,6 +42,9 @@ public class Handler implements Runnable {
                         break;
                     case CREATE_ROOM:
                         this.handleCreateRoom(packet.getRoomName());
+                        break;
+                    case SEND_MSG:
+                        this.handleSendMessage(packet.getMessageToSend());
                         break;
                     default:
                         throw new Exception("Error: server received " + packet.getType() + " unexpected packet type");
@@ -98,6 +100,14 @@ public class Handler implements Runnable {
 //        roomsNames.add(String.valueOf(ThreadLocalRandom.current().nextInt(1, 1000 + 1)));
         try {
             outQueue.put(Packet.createRoomsNames(roomsNames));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void handleSendMessage(String messageToSend) {
+        try {
+            outQueue.put(Packet.receiveMessage(messageToSend));
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

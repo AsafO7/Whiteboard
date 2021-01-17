@@ -30,4 +30,7 @@ public class CssLayouts {
     public static final String cssLeftMenu = cssBorder + ";\n-fx-font-weight: bold;\n" +
             "-fx-color: #E54487;\n" +
             "-fx-font-size: 16";
+    public static final String cssLobbiesStyle = cssBorder + ";\n-fx-font-size: 18;\n" +
+            "-fx-font-weight: bold;\n" +
+            "-fx-border-color: gray";
 }

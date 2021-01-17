@@ -42,6 +42,8 @@ public class Board extends Application{
 
     private List<WhiteboardRoom> rooms = Collections.synchronizedList(new ArrayList<>());
 
+    private List<String> roomsNames = new ArrayList<>();
+
     private GraphicsContext gc;
 
     private Scene whiteboard, lobby;
@@ -51,6 +53,8 @@ public class Board extends Application{
     private Slider thickness;
 
     private ColorPicker colorChooser;
+
+    private InputHandler input;
 
     private Text userList = new Text("Here will be displayed the online users in the room."),
             chat = new Text("Here will be the chat"),
@@ -65,7 +69,9 @@ public class Board extends Application{
             programExplained = "This program is a whiteboard.\nThe whiteboard is a canvas where multiple users can draw on at the same time.\n" +
                     "First the user logs in\\registers in the database of the program, and then chooses to enter an existing lobby or create " +
                     "one of their own.\nFrom there the user enters the whiteboard where they can draw freely on the board or add shapes and text" +
-                    " to it!.\nA user is also able to see other online users in the same lobby at the left side of the program.";
+                    " to it!.\nA user is also able to see other online users in the same lobby at the left side of the program.",
+            BLANK_ROOM_TITLE = "Blank room name", BLANK_ROOM_MSG = "Room name can't be blank",
+            SAME_ROOM_NAME_TITLE = "Room already exists", SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.";
 
     private final String[] shapes = {"Brush", "Line", "Oval", "Rectangle", "Rounded Rectangle", "Text"};
     private final ComboBox<String> shapeChooser = new ComboBox<>();
@@ -110,7 +116,7 @@ public class Board extends Application{
         final int GRID_MENU_SPACING = 10, LEFT_MENU_WIDTH = 200, RIGHT_MENU_WIDTH = 300, TOP_MENU_HEIGHT = 60,
                 BOTTOM_MENU_LEFT = 220, TOOLBAR_HEIGHT = 60, TEXT_WRAPPING_WIDTH = 125, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
                 DRAWING_TEXT_DIALOG_WINDOW_HEIGHT = 200, CHAT_MESSAGE_WRAPPING_WIDTH = 230, EXPLAIN_TEXT_WRAPPING_WIDTH = 280,
-                ROOM_SPACING = 20, BOTTOM_MENU_LOBBY_LEFT = 420, BOTTOM_MENU_LOBBY_SPACING = 350, LOGIN_WINDOW_WIDTH = 250, LOGIN_WINDOW_HEIGHT = 120,
+                ROOM_SPACING = 20, BOTTOM_MENU_LOBBY_LEFT = 420, BOTTOM_MENU_LOBBY_SPACING = 150, LOGIN_WINDOW_WIDTH = 250, LOGIN_WINDOW_HEIGHT = 120,
                 MIN_LINE_THICKNESS = 1, MAX_LINE_THICKNESS = 15;
 
 //        /********************************** Initializing objects ********************************/
@@ -439,13 +445,6 @@ public class Board extends Application{
         info.setStyle(info.getStyle() + ";\n-fx-padding: 6 0 0 6;");
 
         /******************************** Center menu ********************************/
-
-        //TODO: Make this code cleaner after coding lobby functionality.
-
-        HBox l1 = new HBox(), l2 = new HBox(), l3 = new HBox();
-        setLayoutWidth(l1, RIGHT_MENU_WIDTH);
-        setLayoutWidth(l2, RIGHT_MENU_WIDTH);
-        setLayoutWidth(l3, RIGHT_MENU_WIDTH);
 //        Button b = new Button("Click to draw");
 //        b.setOnAction(e -> {
 //            if(isLoggedIn) {
@@ -460,29 +459,29 @@ public class Board extends Application{
 //            else { displayAlert("", enterLobbyText); }
 //        });
 
+        BorderPane test = new BorderPane();
         ScrollPane lobbyCenter = new ScrollPane();
-        VBox lobbies = new VBox();
-
-
-        //lobbyCenter.getChildren().addAll(l1, l2, l3, b);
-        //lobbyCenter.setAlignment(Pos.CENTER);
-        lobbies.setStyle(CssLayouts.cssBorder);
+        VBox lobbies = new VBox(), empty1 = new VBox(), empty2 = new VBox();
+        empty1.getChildren().add(new Text("AAAAA"));
+        empty2.getChildren().add(new Text("BBBB"));
+        empty1.setStyle(CssLayouts.cssBorder);
+        empty2.setStyle(CssLayouts.cssBorder);
+        test.setCenter(lobbyCenter);
+        test.setBottom(empty1);
+        test.setTop(empty2);
+        lobbyCenter.setStyle(CssLayouts.cssBorder);
         lobbyCenter.setContent(lobbies);
-        //lobbies.getChildren().add(b);
-        lobbies.setAlignment(Pos.CENTER);
-
-
-        //TODO: add event listener to lobbyCenter that when an event occurs the room list will be displayed.
-        //TODO: program the communication between Board to Input to Server.
+        lobbyCenter.setVvalue(1.0);
+        lobbyCenter.setFitToWidth(true);
 
         /******************************** Bottom menu ********************************/
 
-        //TODO: fix the stupid GUI to not overflow the screen.
         Button createR = new Button("Create room"), login = new Button("Log in"), refreshRooms = new Button("Refresh rooms");
         HBox bottomM = new HBox();
-        bottomM.setPadding(new Insets(GRID_MENU_SPACING, GRID_MENU_SPACING, GRID_MENU_SPACING, BOTTOM_MENU_LOBBY_LEFT));
+        bottomM.setPadding(new Insets(GRID_MENU_SPACING, GRID_MENU_SPACING, GRID_MENU_SPACING, GRID_MENU_SPACING));
         bottomM.setSpacing(BOTTOM_MENU_LOBBY_SPACING);
         bottomM.getChildren().addAll(createR, refreshRooms, login);
+        bottomM.setAlignment(Pos.CENTER);
         bottomM.setStyle(CssLayouts.cssBottomLayout);
 
         /******************************* Refresh rooms button event handler ******************************/
@@ -495,14 +494,10 @@ public class Board extends Application{
             }
         });
 
-
         /******************************** Create room button event handler *******************************/
 
         createR.setOnAction(e -> {
             if(isLoggedIn) {
-                //TODO:
-                /* Make sure the user is logged in before creating a room. */
-                /* Make the room creator a host and transfer him to the new room. */
                 TextField roomName = new TextField();
                 Button btn = new Button("OK");
 
@@ -536,10 +531,20 @@ public class Board extends Application{
 //                    room.setOnMouseEntered(eRoomMouse -> { lobby.setCursor(Cursor.HAND); });
 //                    room.setOnMouseExited(eRoomMouse2 -> { lobby.setCursor(Cursor.DEFAULT); });
                     //TODO: send a string to the server.
-                    try {
-                        outQueue.put(Packet.createRoom(roomName.getText()));
-                    } catch (InterruptedException interruptedException) {
-                        interruptedException.printStackTrace();
+                    if(roomName.getText().trim().length() == 0) {
+                        displayAlert(BLANK_ROOM_TITLE, BLANK_ROOM_MSG);
+                    }
+                    else if(!roomsNames.isEmpty() && roomsNames.contains(roomName.getText())) {
+                        displayAlert(SAME_ROOM_NAME_TITLE, SAME_ROOM_NAME_MSG);
+                    }
+                    else {
+                        try {
+                            outQueue.put(Packet.createRoom(roomName.getText()));
+                            roomsNames.add(roomName.getText());
+                            input.setHost(user.getText());
+                        } catch (InterruptedException interruptedException) {
+                            interruptedException.printStackTrace();
+                        }
                     }
                     dialog.close();
                 });
@@ -596,6 +601,11 @@ public class Board extends Application{
                         bottomM.getChildren().add(helloMsg);
                         signIn.close();
                         login.setVisible(false);
+                        try {
+                            outQueue.put(Packet.requestRoomsNames());
+                        } catch (InterruptedException interruptedException) {
+                            interruptedException.printStackTrace();
+                        }
                     }
                 }
             });
@@ -607,7 +617,7 @@ public class Board extends Application{
         lobbyLayout.setTop(title);
         lobbyLayout.setLeft(lobbyLeftMenu);
         lobbyLayout.setRight(info);
-        lobbyLayout.setCenter(lobbies);
+        lobbyLayout.setCenter(test);
         lobbyLayout.setBottom(bottomM);
         lobby = new Scene(lobbyLayout, width, height);
 
@@ -623,7 +633,7 @@ public class Board extends Application{
 
     /********************************** Client side ************************************/
 
-    InputHandler input = new InputHandler(socket, lobbies);
+    input = new InputHandler(socket, lobbies, stage, lobby, outQueue);
     Thread threadInputHandler = new Thread(input);
         threadInputHandler.start();
 
@@ -641,15 +651,10 @@ public class Board extends Application{
         stage.show();
         stage.setMinWidth(stage.getWidth());
         stage.setMinHeight(stage.getHeight());
-
     }
 
 
     /******************************** Functions ********************************/
-
-    public void show(Stage stage) {
-
-    }
 
     /* Repaints the canvas */
     private void repaint() {
@@ -675,7 +680,6 @@ public class Board extends Application{
     private void connectToDatabase(String username, String password) {
 
         // connect to database books and query database.
-        // RowSetProvider class implements RowSetFactory which can be used to create various types of RowSets.
         try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
             // specify JdbcRowSet properties
             rowSet.setUrl(DATABASE_URL);
@@ -695,6 +699,7 @@ public class Board extends Application{
                 rowSet.insertRow();
                 isLoggedIn = true;
                 user = new Text(username);
+                input.setUser(user.getText());
                 displayAlert(regisTitle, regisText);
             }
             else {
@@ -706,6 +711,7 @@ public class Board extends Application{
                 else {
                     isLoggedIn = true;
                     user = new Text(username);
+                    input.setUser(user.getText());
                     displayAlert(signInTitle, signInText);
                 }
             }
@@ -729,14 +735,12 @@ public class Board extends Application{
     //TODO: Idea: keep the information about rooms in the database and change scenes acording to that.
     //MAKE A CLASS TO CALL BOARD
 
-    //TODO: check if the lobbies list is scrollable.
-    //TODO: Make the brush have different thickness.
+    //TODO: check why Board is still running after pressing the standard X.
+    //TODO: maybe make a close room button.
+    //TODO: have the server take care of database requests.
     //TODO: make the cursor look like a pen.
     //TODO: maybe add background image to the other menus.
-    //TODO: Make a lobby scene.
-    //TODO: backToLobby.setOnAction(); // Work on it after creating the lobby.
     //TODO: Make a functional chat box.
-    //TODO: Create a server able to hold multiple rooms.
     //TODO: show the users in a room.
 }
 

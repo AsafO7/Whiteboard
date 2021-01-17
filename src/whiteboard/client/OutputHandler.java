@@ -1,3 +1,5 @@
+/* This class takes care of outputs the user receives from the server. */
+
 package whiteboard.client;
 
 import javafx.application.Platform;
