@@ -82,10 +82,10 @@ public class InputHandler implements Runnable {
     }
 
     private void handleNewRoomTransfer() {
-        WhiteboardRoom newRoom = new WhiteboardRoom(this.host.getText(),"A");
+        WhiteboardRoom newRoom = new WhiteboardRoom(this.host.getText());
         drawingRooms.add(newRoom);
         currRoomInd = drawingRooms.size() - 1;
-        //stage.setScene(newRoom.showBoard(stage,host,scene/*, outQueue*/));
+        stage.setScene(newRoom.showBoard(stage,host,scene, outQueue));
     }
 
     /* This method will update the UI with the lobby rooms. */
@@ -109,7 +109,7 @@ public class InputHandler implements Runnable {
     private void addEventListener(VBox lobby, int i) {
         lobby.getChildren().get(i).setOnMouseClicked(e -> {
             currRoomInd = i;
-            //stage.setScene(drawingRooms.get(i).showBoard(stage,user,scene/*, outQueue*/));
+            stage.setScene(drawingRooms.get(i).showBoard(stage,user,scene, outQueue));
             drawingRooms.get(i).repaint();
         });
         lobby.getChildren().get(i).setOnMouseEntered(e -> {

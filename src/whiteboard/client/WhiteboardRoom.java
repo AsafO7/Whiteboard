@@ -21,14 +21,8 @@ import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import whiteboard.Packet;
-import whiteboard.server.RMIServer;
 
-import javax.sql.rowset.JdbcRowSet;
-import javax.sql.rowset.RowSetProvider;
 import java.awt.*;
-import java.rmi.RemoteException;
-import java.sql.Array;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
@@ -44,7 +38,8 @@ public class WhiteboardRoom {
 
     private ColorPicker colorChooser;
 
-    //private final Text topM = new Text("Welcome to Whiteboard! Draw your minds out!");
+    private final Text /* userList = new Text("Here will be displayed the online users in the room."),*/
+            topM = new Text("Welcome to Whiteboard! Draw your minds out!");
     private List<Text> users = new ArrayList<>();
 
     private final String[] shapes = {"Brush", "Line", "Oval", "Rectangle", "Rounded Rectangle", "Text"};
@@ -62,23 +57,13 @@ public class WhiteboardRoom {
 
     private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900;
 
-    private String DATABASE_URL = "jdbc:postgresql:", USERNAME, PASSWORD, roomName, username;
-
     private String host;
-
-    public WhiteboardRoom(String host, String roomName) {
+    public WhiteboardRoom(String host) {
         this.host = host;
-        this.roomName = roomName;
         isHost = true;
     }
 
-//    public WhiteboardRoom(String username) {
-//        this.username = username;
-//    }
-
-    public String getRoomName() { return roomName; }
-
-    public Scene showBoard(Stage stage, Text user, Scene lobby, RequestsHandler RMIServer /*, BlockingQueue<Packet> outQueue*/) {
+    public Scene showBoard(Stage stage, Text user, Scene lobby, BlockingQueue<Packet> outQueue) {
 
             final int GRID_MENU_SPACING = 10, LEFT_MENU_WIDTH = 200, RIGHT_MENU_WIDTH = 300, TOP_MENU_HEIGHT = 60,
                     BOTTOM_MENU_LEFT = 220, TOOLBAR_HEIGHT = 60, TEXT_WRAPPING_WIDTH = 125, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
@@ -168,24 +153,16 @@ public class WhiteboardRoom {
                 if(e.getCode() == KeyCode.ENTER) {
                     // Case of empty message.
                     if(chatMsg.getText().trim().length() == 0) { return; }
-                    Text msg = new Text(user.getText() + ": " + chatMsg.getText());
-                    msg.setStyle(CssLayouts.cssChatText);
-                    msg.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
-                    try {
-                        RMIServer.displayChatMsg(msg, this);
-                    } catch (RemoteException remoteException) {
-                        remoteException.printStackTrace();
-                    }
                     //TODO: Make it so the message won't slide off screen(in the text box).
                     //Text msg = new Text(user.getText() + ": " + chatMsg.getText());
                     //msg.setStyle(CssLayouts.cssChatText);
                     //msg.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
 
-//                    try {
-//                        outQueue.put(Packet.sendMessage(chatMsg.getText()));
-//                    } catch (InterruptedException interruptedException) {
-//                        interruptedException.printStackTrace();
-//                    }
+                    try {
+                        outQueue.put(Packet.sendMessage(chatMsg.getText()));
+                    } catch (InterruptedException interruptedException) {
+                        interruptedException.printStackTrace();
+                    }
 
                     //chatBox.getChildren().add(msg);
                     chatMsg.clear();
@@ -195,7 +172,6 @@ public class WhiteboardRoom {
             /********************************** Building the top menu - The title ********************************/
 
             HBox topMenu = new HBox();
-            Text topM = new Text("Welcome to Whiteboard! Draw your minds out!");
             topMenu.getChildren().add(topM);
             topM.setFill(Color.GREEN);
             topMenu.setStyle(CssLayouts.cssTopLayout);
@@ -251,12 +227,12 @@ public class WhiteboardRoom {
 
                     /* backToLobby button functionality. */
                     if(e.getSource() == backToLobby) {
+                        /* Maybe switch to a scene that takes care of lobby window */
                         leftMenu.getChildren().remove(user);
                         users.remove(user);
                         if(isHost) { isHost = false; }
                         //TODO: make the next user in users the host.
                         chatBox.getChildren().clear();
-                        //TODO: somehow call refreshRooms()
                         stage.setScene(lobby);
                         stage.setTitle("Lobby");
                     }
@@ -292,7 +268,7 @@ public class WhiteboardRoom {
                             /* Add input box so the user will choose the arc width and arc height */
                             arcW.setHeaderText("Please choose the arc width of the rectangle (Integer only).");
                             arcW.show();
-                            arcH.setHeaderText("Please choose the arc height of the rectangle (Integer only).");
+                            arcH.setHeaderText("Please choose the arc width of the rectangle (Integer only).");
                             arcH.show();
                         }
                         /* The user will have to draw another shape in order to change the values of the arcs. */
@@ -371,20 +347,11 @@ public class WhiteboardRoom {
                     case "Brush":
                         brush = (MyBrush)drawable;
                         brush.addPoint(e.getX(), e.getY());
-                        //addPointsToDB(e.getX(), e.getY());
                         break;
                 }
                 repaint();
                 deletedDraws.clear();
             });
-
-        /********************************** Saving the new draw in the database ********************************/
-
-        canvas.setOnMouseDragReleased(e -> {
-            synchronized (myDraws) {
-                addShapeToRoom(myDraws.peek());
-            }
-        });
 
             //TODO: search for paint brush icons. maybe put the picture in a .jar file.
             //Maybe improve it.
@@ -434,121 +401,10 @@ public class WhiteboardRoom {
             return DEFAULT_ARC_VALUE; }
     }
 
-    public VBox getChatBox() { return chatBox; }
-
-    // This method adds the drawn shape to the database.
-    private void addShapeToRoom(MyDraw draw) {
-        try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
-            //TODO: figure out how to get the USERNAME and PASSWORD parameters from board.java without security risks.
-            // specify JdbcRowSet properties
-            rowSet.setUrl(DATABASE_URL);
-            rowSet.setUsername(USERNAME);
-            rowSet.setPassword(PASSWORD);
-
-            rowSet.setCommand("SELECT * FROM " /*+ getRoomName*/);
-            if(draw instanceof MyBrush) {
-                rowSet.moveToInsertRow();
-                rowSet.updateString("SHAPE", "MyBrush");
-                rowSet.updateString("COLOR", String.valueOf(draw.getColor()));
-                rowSet.updateDouble("THICKNESS", draw.getThickness());
-                rowSet.updateDouble("X1", ((MyBrush) draw).getXPoints().get(0));
-                rowSet.updateDouble("Y1", ((MyBrush) draw).getYPoints().get(0));
-                rowSet.updateBoolean("FILL", ((MyBrush)draw).getFill());
-                rowSet.updateArray("XPOINTS", (Array) ((MyBrush) draw).getXPoints());
-                rowSet.updateArray("YPOINTS", (Array) ((MyBrush) draw).getYPoints());
-                rowSet.insertRow();
-            }
-
-            if(draw instanceof MyLine) {
-                rowSet.moveToInsertRow();
-                rowSet.updateString("SHAPE", "MyLine");
-                rowSet.updateString("COLOR", String.valueOf(draw.getColor()));
-                rowSet.updateDouble("THICKNESS", draw.getThickness());
-                rowSet.updateDouble("X1", ((MyLine) draw).getX1());
-                rowSet.updateDouble("Y1", ((MyLine) draw).getY1());
-                rowSet.updateDouble("X2", ((MyLine) draw).getX2());
-                rowSet.updateDouble("Y2", ((MyLine) draw).getY2());
-                rowSet.insertRow();
-            }
-
-            if(draw instanceof MyOval) {
-                rowSet.moveToInsertRow();
-                rowSet.updateString("SHAPE", "MyOval");
-                rowSet.updateString("COLOR", String.valueOf(draw.getColor()));
-                rowSet.updateDouble("THICKNESS", draw.getThickness());
-                rowSet.updateDouble("X1", ((MyOval) draw).getX1());
-                rowSet.updateDouble("Y1", ((MyOval) draw).getY1());
-                rowSet.updateDouble("X2", ((MyOval) draw).getWidth());
-                rowSet.updateDouble("Y2", ((MyOval) draw).getHeight());
-                rowSet.updateBoolean("FILL", ((MyOval)draw).toFill());
-                rowSet.insertRow();
-            }
-
-            if(draw instanceof MyRect) {
-                rowSet.moveToInsertRow();
-                rowSet.updateString("SHAPE", "MyRect");
-                rowSet.updateString("COLOR", String.valueOf(draw.getColor()));
-                rowSet.updateDouble("THICKNESS", draw.getThickness());
-                rowSet.updateDouble("X1", ((MyRect) draw).getX1());
-                rowSet.updateDouble("Y1", ((MyRect) draw).getY1());
-                rowSet.updateDouble("X2", ((MyRect) draw).getWidth());
-                rowSet.updateDouble("Y2", ((MyRect) draw).getHeight());
-                rowSet.updateBoolean("FILL", ((MyRect)draw).toFill());
-                rowSet.insertRow();
-            }
-
-            if(draw instanceof MyRoundRect) {
-                rowSet.moveToInsertRow();
-                rowSet.updateString("SHAPE", "MyRoundRect");
-                rowSet.updateString("COLOR", String.valueOf(draw.getColor()));
-                rowSet.updateDouble("THICKNESS", draw.getThickness());
-                rowSet.updateDouble("X1", ((MyRoundRect) draw).getX1());
-                rowSet.updateDouble("Y1", ((MyRoundRect) draw).getY1());
-                rowSet.updateDouble("X2", ((MyRoundRect) draw).getWidth());
-                rowSet.updateDouble("Y2", ((MyRoundRect) draw).getHeight());
-                rowSet.updateBoolean("FILL", ((MyRoundRect)draw).toFill());
-                rowSet.updateInt("ARCW", ((MyRoundRect)draw).getArcWidth());
-                rowSet.updateInt("ARCH", ((MyRoundRect)draw).getArcHeight());
-                rowSet.insertRow();
-            }
-
-            if(draw instanceof TextBox) {
-                rowSet.moveToInsertRow();
-                rowSet.updateString("SHAPE", "TextBox");
-                rowSet.updateString("COLOR", String.valueOf(draw.getColor()));
-                rowSet.updateDouble("THICKNESS", draw.getThickness());
-                rowSet.updateDouble("X1", ((MyRect) draw).getX1());
-                rowSet.updateDouble("Y1", ((MyRect) draw).getY1());
-                rowSet.updateString("TEXT", ((TextBox)draw).getText());
-                rowSet.insertRow();
-            }
-        }
-        catch (SQLException sqlException)
-        {
-            sqlException.printStackTrace();
-        }
-    }
-
-    // Adds the trail points of a brush drawing to the db.
-    private void addPointsToDB(int currShapeID ,double x, double y) {
-        try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
-            //TODO: figure out how to get the USERNAME and PASSWORD parameters from board.java without security risks.
-            // specify JdbcRowSet properties
-            rowSet.setUrl(DATABASE_URL);
-            rowSet.setUsername(USERNAME);
-            rowSet.setPassword(PASSWORD);
-
-            // set query
-            rowSet.setCommand("");
-            rowSet.execute(); // execute query
-        }
-        catch (SQLException sqlException)
-        {
-            sqlException.printStackTrace();
-        }
+    public VBox getChatBox() {
+        return chatBox;
     }
 
     //TODO: the user needs to receive all the drawings in the room prior to his arrival.
     //TODO: the user needs to receive drawings from other users that are currently being drawn.
-    //TODO: how do you distinguish between 2 shapes with the same attributes?
 }

@@ -46,7 +46,6 @@ public class Handler implements Runnable {
                     case SEND_MSG:
                         this.handleSendMessage(packet.getMessageToSend());
                         break;
-
                     default:
                         throw new Exception("Error: server received " + packet.getType() + " unexpected packet type");
                 }
