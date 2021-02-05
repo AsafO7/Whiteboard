@@ -11,6 +11,7 @@ public class Packet implements Serializable {
 
     private Type type;
     private Object obj;
+    private Object obj2;
 
     public enum Type { // List of events
         GET_ROOMS,
@@ -19,10 +20,17 @@ public class Packet implements Serializable {
         ACK_CREATE_ROOM,
         SEND_MSG,
         RECEIVE_MSG,
+        SIGN_IN,
     }
 
     public Packet(Object obj, Type type) {
         this.obj = obj;
+        this.type = type;
+    }
+
+    public Packet(Object obj, Object obj2, Type type) {
+        this.obj = obj;
+        this.obj2 = obj2;
         this.type = type;
     }
 
@@ -48,13 +56,13 @@ public class Packet implements Serializable {
         return new Packet(answer, Type.ACK_CREATE_ROOM);
     }
 
-    public static Packet sendMessage(String msg) {
-        return new Packet(msg, Type.SEND_MSG);
-    }
+    public static Packet sendMessage(String msg) { return new Packet(msg, Type.SEND_MSG); }
 
     public static Packet receiveMessage(String msg) {
         return new Packet(msg, Type.RECEIVE_MSG);
     }
+
+    public static Packet signIn(String username, String password) { return new Packet(username, password, Type.SIGN_IN); }
 
     /******************************** Type errors handling ********************************/
 

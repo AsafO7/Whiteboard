@@ -2,7 +2,6 @@ package whiteboard.client;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import whiteboard.client.MyComplexShape;
 
 /* This class represents an Oval. */
 

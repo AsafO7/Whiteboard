@@ -29,6 +29,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,7 +45,9 @@ public class Board extends Application{
 
     private List<WhiteboardRoom> rooms = Collections.synchronizedList(new ArrayList<>());
 
-    private List<String> roomsNames = new ArrayList<>();
+    private List<String> roomsNames = new ArrayList<>(), hostsNames = new ArrayList<>();
+
+    private RequestsHandler RMIServer;
 
     private GraphicsContext gc;
 
@@ -61,17 +66,18 @@ public class Board extends Application{
             topM = new Text("Welcome to Whiteboard! Draw your minds out!"),
             user;
 
-    final String pSTitle = "Password too short", pSText = "Password must be at least 6 characters long.",
-            regisTitle = "Successfully registered", regisText = "You've been successfully registered and logged in.",
-            signInTitle = "Successfully logged in", signInText = "You've been successfully logged in.",
-            pWTitle = "Wrong password", pWText = "You've entered a wrong password, please try again.",
-            enterLobbyText = "You must be logged in before entering a lobby", emptyUsernameText = "Username can't be blank.",
-            programExplained = "This program is a whiteboard.\nThe whiteboard is a canvas where multiple users can draw on at the same time.\n" +
-                    "First the user logs in\\registers in the database of the program, and then chooses to enter an existing lobby or create " +
+    final String PS_TITLE = "Password too short", PS_TEXT = "Password must be at least 6 characters long.",
+            REGIS_TITLE = "Successfully registered", REGIS_TEXT = "You've been successfully registered and logged in.",
+            SIGN_IN_TITLE = "Successfully logged in", SIGN_IN_TEXT = "You've been successfully logged in.",
+            PW_TITLE = "Wrong password", PW_TEXT = "You've entered a wrong password, please try again.",
+            ENTERED_LOBBY_TEXT = "You must be logged in before entering a lobby", EMPTY_USERNAME_TEXT = "Username can't be blank.",
+            PROGRAM_EXPLAINED = "This program is a whiteboard.\nThe whiteboard is a canvas where multiple users can draw on at the same time.\n" +
+                    "First the user logs in/registers in the database of the program, and then chooses to enter an existing lobby or create " +
                     "one of their own.\nFrom there the user enters the whiteboard where they can draw freely on the board or add shapes and text" +
                     " to it!.\nA user is also able to see other online users in the same lobby at the left side of the program.",
             BLANK_ROOM_TITLE = "Blank room name", BLANK_ROOM_MSG = "Room name can't be blank",
-            SAME_ROOM_NAME_TITLE = "Room already exists", SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.";
+            SAME_ROOM_NAME_TITLE = "Room already exists", SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.",
+            USER_ONLINE_TITLE = "Logged in already", USER_ONLINE_TEXT = "User is already logged in.";
 
     private final String[] shapes = {"Brush", "Line", "Oval", "Rectangle", "Rounded Rectangle", "Text"};
     private final ComboBox<String> shapeChooser = new ComboBox<>();
@@ -84,11 +90,14 @@ public class Board extends Application{
     // If the user isn't the host don't clear the board.
     private final boolean isHost = false;
 
-    private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900, DEFAULT_ARC_VALUE = 10;
+    private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900, DEFAULT_ARC_VALUE = 10, REGISTERED = 1, LOGGED_IN = 2, WRONG_PASSWORD = 3,
+            LOGGED_IN_ALREADY = 4;
 
     private String DATABASE_URL = "jdbc:postgresql:", USERNAME, PASSWORD;
 
     private int numOfRooms = 0;
+
+    private VBox lobbies;
 
     private Socket socket;
     private BlockingQueue<Packet> outQueue = new LinkedBlockingQueue<Packet>();
@@ -101,17 +110,17 @@ public class Board extends Application{
     }
 
     @Override
-    public void start(Stage stage) throws IOException /* throws Exception */ {
+    public void start(Stage stage) throws IOException, NotBoundException /* throws Exception */ {
 
-        java.util.List<String> args = getParameters().getRaw();
-        if (args.size() != 3) {
-            System.err.println("The program must be given 3 arguments: Database path, username and password");
-            Platform.exit();
-            return;
-        }
-        DATABASE_URL += args.get(0);
-        USERNAME = args.get(1);
-        PASSWORD = args.get(2);
+//        java.util.List<String> args = getParameters().getRaw();
+//        if (args.size() != 3) {
+//            System.err.println("The program must be given 3 arguments: Database path, username and password");
+//            Platform.exit();
+//            return;
+//        }
+//        DATABASE_URL += args.get(0);
+//        USERNAME = args.get(1);
+//        PASSWORD = args.get(2);
 
         final int GRID_MENU_SPACING = 10, LEFT_MENU_WIDTH = 200, RIGHT_MENU_WIDTH = 300, TOP_MENU_HEIGHT = 60,
                 BOTTOM_MENU_LEFT = 220, TOOLBAR_HEIGHT = 60, TEXT_WRAPPING_WIDTH = 125, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
@@ -408,7 +417,6 @@ public class Board extends Application{
         /******************************** Whiteboard scene - End ********************************/
 
 
-
     /******************************** Lobby scene ********************************/
 
         /******************************** Top menu ********************************/
@@ -435,7 +443,7 @@ public class Board extends Application{
 
         /******************************** Right menu - info ********************************/
 
-        Text toKnow = new Text(programExplained);
+        Text toKnow = new Text(PROGRAM_EXPLAINED);
         toKnow.setStyle(CssLayouts.cssExplanationText);
         toKnow.setWrappingWidth(EXPLAIN_TEXT_WRAPPING_WIDTH);
         VBox info = new VBox();
@@ -461,7 +469,8 @@ public class Board extends Application{
 
         BorderPane test = new BorderPane();
         ScrollPane lobbyCenter = new ScrollPane();
-        VBox lobbies = new VBox(), empty1 = new VBox(), empty2 = new VBox();
+        lobbies = new VBox();
+        VBox empty1 = new VBox(), empty2 = new VBox();
         empty1.getChildren().add(new Text("AAAAA"));
         empty2.getChildren().add(new Text("BBBB"));
         empty1.setStyle(CssLayouts.cssBorder);
@@ -487,10 +496,17 @@ public class Board extends Application{
         /******************************* Refresh rooms button event handler ******************************/
 
         refreshRooms.setOnAction(e -> {
+//            try {
+//                outQueue.put(Packet.requestRoomsNames());
+//            } catch (InterruptedException interruptedException) {
+//                interruptedException.printStackTrace();
+//            }
             try {
-                outQueue.put(Packet.requestRoomsNames());
-            } catch (InterruptedException interruptedException) {
-                interruptedException.printStackTrace();
+                rooms = RMIServer.refreshRooms();
+                hostsNames = RMIServer.getHostsNames();
+                displayRooms(hostsNames, stage, lobby);
+            } catch (RemoteException remoteException) {
+                remoteException.printStackTrace();
             }
         });
 
@@ -509,6 +525,7 @@ public class Board extends Application{
 
                 // Dialog window.
                 final Stage dialog = new Stage();
+                dialog.setTitle("Choose room name");
                 dialog.initModality(Modality.NONE);
                 dialog.initOwner(stage);
                 Scene dialogScene = new Scene(textBox, 150, 50);
@@ -534,22 +551,47 @@ public class Board extends Application{
                     if(roomName.getText().trim().length() == 0) {
                         displayAlert(BLANK_ROOM_TITLE, BLANK_ROOM_MSG);
                     }
-                    else if(!roomsNames.isEmpty() && roomsNames.contains(roomName.getText())) {
-                        displayAlert(SAME_ROOM_NAME_TITLE, SAME_ROOM_NAME_MSG);
-                    }
                     else {
                         try {
-                            outQueue.put(Packet.createRoom(roomName.getText()));
-                            roomsNames.add(roomName.getText());
-                            input.setHost(user.getText());
-                        } catch (InterruptedException interruptedException) {
-                            interruptedException.printStackTrace();
+                            boolean roomExists = RMIServer.roomNameExists(roomName.getText());
+                            if(roomExists) {
+                                displayAlert(SAME_ROOM_NAME_TITLE, SAME_ROOM_NAME_MSG);
+                            }
+                            else {
+                                WhiteboardRoom room = RMIServer.createLobby(roomName.getText());
+                                //WhiteboardRoom room = RMIServer.getLatestRoom();
+                                //WhiteboardRoom room = new WhiteboardRoom(user.getText(), roomName.getText());
+                                stage.setScene(room.showBoard(stage, user, lobby, RMIServer));
+                            }
+                        } catch (RemoteException remoteException) {
+                            remoteException.printStackTrace();
                         }
                     }
+//                    else {
+////                        try {
+////                            outQueue.put(Packet.createRoom(roomName.getText()));
+////                            roomsNames.add(roomName.getText());
+////                            input.setHost(user.getText());
+////                            createLobby(roomName.getText());
+////                        } catch (InterruptedException interruptedException) {
+////                            interruptedException.printStackTrace();
+////                        }
+//                        try {
+//                            RMIServer.createLobby(roomName.getText());
+//                            //TODO: Transfer this to the server.
+////                            WhiteboardRoom newRoom = new WhiteboardRoom(user.getText(), roomName.getText());
+////                            rooms.add(newRoom);
+////                            roomsNames.add(roomName.getText());
+////                            stage.setScene(newRoom.showBoard(stage,user,lobby));
+//
+//                        } catch (RemoteException remoteException) {
+//                            remoteException.printStackTrace();
+//                        }
+//                    }
                     dialog.close();
                 });
             }
-            else { displayAlert("", enterLobbyText); }
+            else { displayAlert("", ENTERED_LOBBY_TEXT); }
         });
 
         /******************************** Login button event handler *******************************/
@@ -587,25 +629,70 @@ public class Board extends Application{
 
             confirm.setOnAction(e1 -> {
                 if(nickname.getText().trim().length() == 0) {
-                    displayAlert("", emptyUsernameText);
+                    displayAlert("", EMPTY_USERNAME_TEXT);
                 }
                 // Password must have at least 6 characters.
                 else if(password.getText().length() < 6) {
-                    displayAlert(pSTitle, pSText);
+                    displayAlert(PS_TITLE, PS_TEXT);
                 }
                 else {
-                    connectToDatabase(nickname.getText(), password.getText());
-                    if(isLoggedIn) {
-                        Text helloMsg = new Text("Hello " + nickname.getText());
-                        helloMsg.setStyle(CssLayouts.cssBottomLayoutText);
-                        bottomM.getChildren().add(helloMsg);
-                        signIn.close();
-                        login.setVisible(false);
-                        try {
-                            outQueue.put(Packet.requestRoomsNames());
-                        } catch (InterruptedException interruptedException) {
-                            interruptedException.printStackTrace();
+                    try {
+                        int loginRes = RMIServer.connectToDatabase(nickname.getText(), password.getText());
+                        switch (loginRes) {
+                            case REGISTERED: {
+                                displayAlert(REGIS_TITLE, REGIS_TEXT);
+                                isLoggedIn = true;
+                                break;
+                            }
+                            case WRONG_PASSWORD: {
+                                displayAlert(PW_TITLE, PW_TEXT);
+                                break;
+                            }
+                            case LOGGED_IN_ALREADY: {
+                                displayAlert(USER_ONLINE_TITLE, USER_ONLINE_TEXT);
+                                break;
+                            }
+                            case LOGGED_IN: {
+                                displayAlert(SIGN_IN_TITLE, SIGN_IN_TEXT);
+                                isLoggedIn = true;
+                                break;
+                            }
+                            default: System.out.println("Something went wrong, this message should never appear.");
                         }
+//                        if(loginRes == REGISTERED) {
+//                            displayAlert(REGIS_TITLE, REGIS_TEXT);
+//                            isLoggedIn = true;
+//                        }
+//                        else if(loginRes == WRONG_PASSWORD) { displayAlert(PW_TITLE, PW_TEXT); }
+//                        else if(loginRes == LOGGED_IN_ALREADY) { displayAlert(USER_ONLINE_TITLE, USER_ONLINE_TEXT); }
+//                        else if(loginRes == LOGGED_IN) {
+//                            displayAlert(SIGN_IN_TITLE, SIGN_IN_TEXT);
+//                            isLoggedIn = true;
+//                        }
+//                        else { System.out.println("Something went wrong, this message should never appear."); }
+
+                        if(isLoggedIn) {
+                            Text helloMsg = new Text("Hello " + nickname.getText());
+                            user = new Text(nickname.getText());
+                            helloMsg.setStyle(CssLayouts.cssBottomLayoutText);
+                            bottomM.getChildren().add(helloMsg);
+                            signIn.close();
+                            login.setVisible(false);
+                            try {
+                                rooms = RMIServer.refreshRooms();
+                                hostsNames = RMIServer.getHostsNames();
+                                displayRooms(hostsNames, stage, lobby);
+                            } catch (RemoteException remoteException) {
+                                remoteException.printStackTrace();
+                            }
+//                        try {
+//                            outQueue.put(Packet.requestRoomsNames());
+//                        } catch (InterruptedException interruptedException) {
+//                            interruptedException.printStackTrace();
+//                        }
+                        }
+                    } catch (RemoteException remoteException) {
+                        remoteException.printStackTrace();
                     }
                 }
             });
@@ -624,24 +711,26 @@ public class Board extends Application{
     /******************************** Lobby scene - End ********************************/
 
     /********************************** Setting up socket ************************************/
-    try {
-        socket = new Socket(Connection.DOMAIN, Connection.PORT);
-    }
-    catch (Exception e) {
-        e.printStackTrace();
-    }
+//    try {
+//        socket = new Socket(Connection.DOMAIN, Connection.PORT);
+//    }
+//    catch (Exception e) {
+//        e.printStackTrace();
+//    }
+        RMIServer = (RequestsHandler) Naming.lookup("rmi://localhost:1099/ServerForSettingPrimeAttribute");
+        System.out.println("Client's up.");
 
     /********************************** Client side ************************************/
 
-    input = new InputHandler(socket, lobbies, stage, lobby, outQueue);
-    Thread threadInputHandler = new Thread(input);
-        threadInputHandler.start();
+//    input = new InputHandler(socket, lobbies, stage, lobby, outQueue);
+//    Thread threadInputHandler = new Thread(input);
+//        threadInputHandler.start();
 
     /********************************** Client side ************************************/
 
-    OutputHandler output = new OutputHandler(socket, outQueue);
-    Thread threadOutputHandler = new Thread(output);
-    threadOutputHandler.start();
+//    OutputHandler output = new OutputHandler(socket, outQueue);
+//    Thread threadOutputHandler = new Thread(output);
+//    threadOutputHandler.start();
 
     /******************************** Setting the stage ********************************/
 
@@ -653,14 +742,13 @@ public class Board extends Application{
         stage.setMinHeight(stage.getHeight());
     }
 
-
     /******************************** Functions ********************************/
 
     /* Repaints the canvas */
-    private void repaint() {
-        gc.clearRect(0, 0, CANVAS_WIDTH,CANVAS_HEIGHT);
-        for (MyDraw myDraw : myDraws) { myDraw.Draw(gc); }
-    }
+//    private void repaint() {
+//        gc.clearRect(0, 0, CANVAS_WIDTH,CANVAS_HEIGHT);
+//        for (MyDraw myDraw : myDraws) { myDraw.Draw(gc); }
+//    }
 
     // To prevent repeated code.
     private void setLayoutWidth(Pane p, int width) {
@@ -677,59 +765,128 @@ public class Board extends Application{
         catch (NumberFormatException e) { return DEFAULT_ARC_VALUE; }
     }
 
-    private void connectToDatabase(String username, String password) {
+//    private void connectToDatabase(String username, String password) {
+//
+//        // connect to database books and query database.
+//        try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
+//            // specify JdbcRowSet properties
+//            rowSet.setUrl(DATABASE_URL);
+//            rowSet.setUsername(USERNAME);
+//            rowSet.setPassword(PASSWORD);
+//            // Get every user from the database to check if the client's username exists.
+//            rowSet.setCommand("SELECT * FROM users WHERE username = ?"); // set query
+//            rowSet.setString(1, username);
+//            rowSet.execute(); // execute query
+//
+//            // Register the new user.
+//            if(!rowSet.next()) {
+//                // add user to database.
+//                rowSet.moveToInsertRow();
+//                rowSet.updateString("username", username);
+//                rowSet.updateString("password", password);
+//                rowSet.insertRow();
+//                isLoggedIn = true;
+//                user = new Text(username);
+//                input.setUser(user.getText());
+//                displayAlert(regisTitle, regisText);
+//            }
+//            else {
+//                // User exists but password is wrong.
+//                if(!rowSet.getObject(2).equals(password)) {
+//                    displayAlert(pWTitle, pWText);
+//                }
+//                // User logged in.
+//                else {
+//                    isLoggedIn = true;
+//                    user = new Text(username);
+//                    input.setUser(user.getText());
+//                    displayAlert(signInTitle, signInText);
+//                }
+//            }
+//        }
+//        catch (SQLException sqlException)
+//        {
+//            sqlException.printStackTrace();
+//            System.exit(1);
+//        }
+//    }
 
-        // connect to database books and query database.
-        try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
-            // specify JdbcRowSet properties
-            rowSet.setUrl(DATABASE_URL);
-            rowSet.setUsername(USERNAME);
-            rowSet.setPassword(PASSWORD);
-            // Get every user from the database to check if the client's username exists.
-            rowSet.setCommand("SELECT * FROM users WHERE username = ?"); // set query
-            rowSet.setString(1, username);
-            rowSet.execute(); // execute query
 
-            // Register the new user.
-            if(!rowSet.next()) {
-                // add user to database.
-                rowSet.moveToInsertRow();
-                rowSet.updateString("username", username);
-                rowSet.updateString("password", password);
-                rowSet.insertRow();
-                isLoggedIn = true;
-                user = new Text(username);
-                input.setUser(user.getText());
-                displayAlert(regisTitle, regisText);
-            }
-            else {
-                // whiteboard.client.User exists but password is wrong.
-                if(!rowSet.getObject(2).equals(password)) {
-                    displayAlert(pWTitle, pWText);
-                }
-                // whiteboard.client.User logged in.
-                else {
-                    isLoggedIn = true;
-                    user = new Text(username);
-                    input.setUser(user.getText());
-                    displayAlert(signInTitle, signInText);
-                }
-            }
-        }
-        catch (SQLException sqlException)
-        {
-            sqlException.printStackTrace();
-            System.exit(1);
-        }
-    }
+//    private void createLobby(String roomName) {
+//        try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
+//            // specify JdbcRowSet properties
+//            rowSet.setUrl(DATABASE_URL);
+//            rowSet.setUsername(USERNAME);
+//            rowSet.setPassword(PASSWORD);
+//
+//            rowSet.setCommand("CREATE TABLE " + roomName + "(" +
+//                    "SHAPE VARCHAR(30),"
+//                    + "COLOR VARCHAR(30),"
+//                    + "THICKNESS DOUBLE PRECISION,"
+//                    + "X1 DOUBLE PRECISION,"
+//                    + "Y1 DOUBLE PRECISION,"
+//                    + "X2 DOUBLE PRECISION,"
+//                    + "Y2 DOUBLE PRECISION,"
+//                    + "FILL BIT,"
+//                    + "ARCW INT,"
+//                    + "ARCH INT,"
+//                    + "XPOINTS DOUBLE PRECISION ARRAY,"
+//                    + "YPOINTS DOUBLE PRECISION ARRAY,"
+//                    + "TEXT VARCHAR(512))");
+//            // set query
+//            rowSet.execute(); // execute query
+//        }
+//        catch (SQLException sqlException)
+//        {
+//            //sqlException.printStackTrace();
+//        }
+//    }
 
-    // To prevent repeated code.
+    // Displays an alert.
     private void displayAlert(String title, String text) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(text);
         alert.showAndWait();
+    }
+
+    private void displayRooms(List<String> hostsNames, Stage stage, Scene lobby) {
+        if(rooms.isEmpty()) { return; }
+        //TODO: How to create the rooms only once?
+//        if(firstTimeLoggedIn) {
+//            for(int i = 0; i < roomsNames.size(); i++) {
+//                rooms.add(new WhiteboardRoom(hostsNames.get(i), roomsNames.get(i)));
+//            }
+//        }
+        lobbies.getChildren().clear();
+        VBox[] containers = new VBox[rooms.size()];
+        /* Organizing the rooms in the layout. */
+        for(int i = 0; i < rooms.size(); i++) {
+            //rooms.add(new WhiteboardRoom(hostsNames.get(i), roomsNames.get(i)));
+            containers[i] = new VBox();
+            containers[i].setAlignment(Pos.CENTER);
+            containers[i].getChildren().add(new Label(rooms.get(i).getRoomName() + "\t\t Host: " + hostsNames.get(i)));
+            lobbies.getChildren().add(containers[i]);
+            lobbies.getChildren().get(i).setStyle(CssLayouts.cssLobbiesStyle);
+
+            addEventListener(i, stage, lobby);
+        }
+    }
+
+    //TODO: in this function the user will receive all the drawings currently in the room.
+    private void addEventListener(int i, Stage stage, Scene lobby) {
+        lobbies.getChildren().get(i).setOnMouseClicked(e -> {
+            //TODO: call a function to retreive the drawings from the database
+            stage.setScene(rooms.get(i).showBoard(stage, user, lobby, RMIServer));
+            rooms.get(i).repaint();
+        });
+        lobbies.getChildren().get(i).setOnMouseEntered(e -> {
+            lobby.setCursor(Cursor.HAND);
+        });
+        lobbies.getChildren().get(i).setOnMouseExited(e -> {
+            lobby.setCursor(Cursor.DEFAULT);
+        });
     }
 
     //TODO: Idea: keep the information about rooms in the database and change scenes acording to that.

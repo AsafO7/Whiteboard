@@ -23,6 +23,16 @@ public class MyBrush extends MyDraw {
         this.yPoints.add(y);
     }
 
+    public ArrayList<Double> getXPoints() {
+        return xPoints;
+    }
+
+    public ArrayList<Double> getYPoints() {
+        return yPoints;
+    }
+
+    public boolean getFill() { return this.fill; }
+
 //    @Override
 //    public void Draw(GraphicsContext g) {
 //        g.setStroke(this.getColor());
