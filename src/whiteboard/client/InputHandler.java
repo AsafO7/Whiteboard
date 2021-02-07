@@ -28,11 +28,14 @@ public class InputHandler implements Runnable {
     private final Socket socket;
     private final VBox lobby;
     private BlockingQueue<Packet> outQueue;
-    private Text user = new Text(), host = new Text();
-    private int currRoomInd = 0;
-
+    private Text user = new Text("AAA"), host = new Text("BBB");
+    private WhiteboardRoom currRoom;
+    private String roomName = "";
 
     private List<WhiteboardRoom> drawingRooms = new ArrayList<>();
+
+    private final String SAME_ROOM_NAME_TITLE = "Room already exists",
+            SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.";
 
     public InputHandler(Socket socket, VBox currentLobby, Stage stage, Scene scene, BlockingQueue<Packet> outQueue) {
         this.socket = socket;
@@ -61,11 +64,18 @@ public class InputHandler implements Runnable {
                         if(packet.getAckCreateRoom()) {
                             Platform.runLater(this::handleNewRoomTransfer);
                         }
+                        else {
+                            //TODO: display a message room name already taken.
+                            displayAlert(SAME_ROOM_NAME_TITLE, SAME_ROOM_NAME_MSG);
+                        }
                         break;
                     case  RECEIVE_MSG:
                         String msg = packet.getMessageToReceive();
                         Platform.runLater(() -> this.handleReceivedMessage(msg));
                         break;
+                    case ADD_USER_TO_GUI:
+                        String user = packet.getUserName();
+                        Platform.runLater(() -> addUserToGUI(user));
                 }
             }
         }
@@ -81,16 +91,27 @@ public class InputHandler implements Runnable {
         }
     }
 
-    private void handleNewRoomTransfer() {
-        WhiteboardRoom newRoom = new WhiteboardRoom(this.host.getText());
-        drawingRooms.add(newRoom);
-        currRoomInd = drawingRooms.size() - 1;
-        stage.setScene(newRoom.showBoard(stage,host,scene, outQueue));
+    private void addUserToGUI(String user) {
+        currRoom.getOnlineUsersPanel().getChildren().add(new Text(user));
     }
+
+    // NOT WORKING OBVIOUSLY
+    private void handleNewRoomTransfer() {
+        String roomName = this.roomName;
+        currRoom = new WhiteboardRoom(this.host.getText());
+        try {
+            outQueue.put(Packet.requestAddUserToGUI(roomName));
+        } catch (InterruptedException exception) {
+            exception.printStackTrace();
+        }
+        stage.setScene(currRoom.showBoard(stage,host,scene, outQueue));
+    }
+
+    //TODO: different users don't have the same rooms list.
 
     /* This method will update the UI with the lobby rooms. */
     private void handleRoomsList(List<String> roomsNames) {
-        if(drawingRooms.isEmpty()) { return; }
+        //if(drawingRooms.isEmpty()) { return; }
         lobby.getChildren().clear();
         VBox[] containers = new VBox[roomsNames.size()];
         /* Organizing the rooms in the layout. */
@@ -101,16 +122,22 @@ public class InputHandler implements Runnable {
             lobby.getChildren().add(containers[i]);
             lobby.getChildren().get(i).setStyle(CssLayouts.cssLobbiesStyle);
 
-            addEventListener(lobby, i);
+            addEventListener(lobby, i, roomsNames);
         }
     }
 
     //TODO: in this function the user will receive all the drawings currently in the room.
-    private void addEventListener(VBox lobby, int i) {
+    private void addEventListener(VBox lobby, int i, List<String> roomsNames) {
         lobby.getChildren().get(i).setOnMouseClicked(e -> {
-            currRoomInd = i;
-            stage.setScene(drawingRooms.get(i).showBoard(stage,user,scene, outQueue));
-            drawingRooms.get(i).repaint();
+            currRoom = new WhiteboardRoom(this.user.getText());
+            try {
+                outQueue.put(Packet.requestAddUserToGUI(roomsNames.get(i)));
+            } catch (InterruptedException exception) {
+                exception.printStackTrace();
+            }
+            stage.setScene(currRoom.showBoard(stage, user, scene, outQueue));
+//            stage.setScene(drawingRooms.get(i).showBoard(stage,user,scene, outQueue));
+//            drawingRooms.get(i).repaint();
         });
         lobby.getChildren().get(i).setOnMouseEntered(e -> {
             lobby.setCursor(Cursor.HAND);
@@ -124,14 +151,27 @@ public class InputHandler implements Runnable {
         Text msgToReceive = new Text(user.getText() + ": " + msg);
         msgToReceive.setStyle(CssLayouts.cssChatText);
         msgToReceive.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
-        drawingRooms.get(currRoomInd).getChatBox().getChildren().add(msgToReceive);
+        //System.out.println(currRoom);
+        currRoom.getChatBox().getChildren().add(msgToReceive);
     }
 
-    public void setHost(String host) {
-        this.host.setText(host);
+//    public void setHost(String host) {
+//        this.host.setText(host);
+//    }
+//
+//    public void setUser(String user) {
+//        this.user.setText(user);
+//    }
+
+    public void setRoomName(String name) {
+        this.roomName = name;
     }
 
-    public void setUser(String user) {
-        this.user.setText(user);
+    private void displayAlert(String title, String text) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(text);
+        alert.showAndWait();
     }
 }

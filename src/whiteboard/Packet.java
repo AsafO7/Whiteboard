@@ -19,6 +19,10 @@ public class Packet implements Serializable {
         ACK_CREATE_ROOM,
         SEND_MSG,
         RECEIVE_MSG,
+        ADD_USER,
+        REQUEST_ADD_USER_TO_GUI,
+        ADD_USER_TO_GUI,
+        REMOVE_USER,
     }
 
     public Packet(Object obj, Type type) {
@@ -44,17 +48,21 @@ public class Packet implements Serializable {
     }
 
     // Confirms the room is created request.
-    public static Packet ackCreateRoom(boolean answer) {
-        return new Packet(answer, Type.ACK_CREATE_ROOM);
-    }
+    public static Packet ackCreateRoom(boolean answer) { return new Packet(answer, Type.ACK_CREATE_ROOM); }
 
-    public static Packet sendMessage(String msg) {
-        return new Packet(msg, Type.SEND_MSG);
-    }
+    public static Packet sendMessage(String msg) { return new Packet(msg, Type.SEND_MSG); }
 
     public static Packet receiveMessage(String msg) {
         return new Packet(msg, Type.RECEIVE_MSG);
     }
+
+    public static Packet addUser(String roomName) { return new Packet(roomName, Type.ADD_USER); }
+
+    public static Packet requestAddUserToGUI(String user) { return new Packet(user, Type.REQUEST_ADD_USER_TO_GUI); }
+
+    public static Packet addUserToGUI(String user) { return new Packet(user, Type.ADD_USER_TO_GUI); }
+
+    public static Packet removeUser(/*String roomName*/) { return new Packet(/*roomName*/null, Type.REMOVE_USER); }
 
     /******************************** Type errors handling ********************************/
 
@@ -66,10 +74,17 @@ public class Packet implements Serializable {
     }
 
     public String getRoomName() throws TypeError{
-        if(type != Type.CREATE_ROOM) {
+        if(type != Type.CREATE_ROOM && type != Type.ADD_USER /*&& type != Type.REMOVE_USER*/) {
             throw new TypeError(Type.CREATE_ROOM, type);
         }
         return (String)obj;
+    }
+
+    public String getUserName() throws TypeError {
+        if(type != Type.ADD_USER_TO_GUI && type != Type.REQUEST_ADD_USER_TO_GUI) {
+            throw new TypeError(Type.ADD_USER_TO_GUI, type);
+        }
+        return (String) obj;
     }
 
     public boolean getAckCreateRoom() throws TypeError {

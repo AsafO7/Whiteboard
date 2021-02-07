@@ -50,7 +50,7 @@ public class WhiteboardRoom {
     private boolean toFill = false, isRoundRectChosen = false;
     private Color color = Color.BLACK; // Default color is black.
 
-    private VBox chatBox = new VBox();
+    private VBox chatBox = new VBox(), leftMenu;
 
     // If the user isn't the host don't clear the board.
     private boolean isHost = false;
@@ -61,6 +61,10 @@ public class WhiteboardRoom {
     public WhiteboardRoom(String host) {
         this.host = host;
         isHost = true;
+    }
+
+    public VBox getOnlineUsersPanel() {
+        return leftMenu;
     }
 
     public Scene showBoard(Stage stage, Text user, Scene lobby, BlockingQueue<Packet> outQueue) {
@@ -123,13 +127,13 @@ public class WhiteboardRoom {
             /********************************** Building the left menu - online users list ********************************/
 
             // Online users in the room.
-            VBox leftMenu = new VBox();
+            leftMenu = new VBox();
             leftMenu.setMaxWidth(LEFT_MENU_WIDTH);
             leftMenu.setMinWidth(LEFT_MENU_WIDTH);
             leftMenu.setStyle(CssLayouts.cssLeftMenu + ";\n-fx-padding: 3 0 0 10;");
-            for(int i = 0; i < users.size(); i++) {
-                leftMenu.getChildren().add(users.get(i));
-            }
+//            for(int i = 0; i < users.size(); i++) {
+//                leftMenu.getChildren().add(users.get(i));
+//            }
             //leftMenu.getChildren().add(user);
 
             /********************************** Building the right menu - chat box ********************************/
@@ -154,9 +158,9 @@ public class WhiteboardRoom {
                     // Case of empty message.
                     if(chatMsg.getText().trim().length() == 0) { return; }
                     //TODO: Make it so the message won't slide off screen(in the text box).
-                    //Text msg = new Text(user.getText() + ": " + chatMsg.getText());
-                    //msg.setStyle(CssLayouts.cssChatText);
-                    //msg.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
+                    Text msg = new Text(user.getText() + ": " + chatMsg.getText());
+                    msg.setStyle(CssLayouts.cssChatText);
+                    msg.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
 
                     try {
                         outQueue.put(Packet.sendMessage(chatMsg.getText()));
@@ -164,7 +168,7 @@ public class WhiteboardRoom {
                         interruptedException.printStackTrace();
                     }
 
-                    //chatBox.getChildren().add(msg);
+                    chatBox.getChildren().add(msg);
                     chatMsg.clear();
                 }
             });
@@ -229,10 +233,16 @@ public class WhiteboardRoom {
                     if(e.getSource() == backToLobby) {
                         /* Maybe switch to a scene that takes care of lobby window */
                         leftMenu.getChildren().remove(user);
-                        users.remove(user);
+                        //users.remove(user);
                         if(isHost) { isHost = false; }
                         //TODO: make the next user in users the host.
                         chatBox.getChildren().clear();
+                        try {
+                            outQueue.put(Packet.removeUser());
+                            outQueue.put(Packet.requestRoomsNames());
+                        } catch (InterruptedException interruptedException) {
+                            interruptedException.printStackTrace();
+                        }
                         stage.setScene(lobby);
                         stage.setTitle("Lobby");
                     }

@@ -17,6 +17,7 @@ public class Handler implements Runnable {
     private final List<Room> rooms;
     private Thread OutputHandlerThread;
     private OutputHandler outputHandler;
+    private Room currRoom;
 
     public Handler(Socket socket, List<Room> rooms) {
         this.socket = socket;
@@ -43,8 +44,16 @@ public class Handler implements Runnable {
                     case CREATE_ROOM:
                         this.handleCreateRoom(packet.getRoomName());
                         break;
+                    case REQUEST_ADD_USER_TO_GUI:
+                        this.handleRequestAddUserToGUI(packet.getUserName());
+                        break;
                     case SEND_MSG:
                         this.handleSendMessage(packet.getMessageToSend());
+                        break;
+//                    case ADD_USER:
+//                        this.addUser(packet.getRoomName());
+                    case REMOVE_USER:
+                        this.removeUser();
                         break;
                     default:
                         throw new Exception("Error: server received " + packet.getType() + " unexpected packet type");
@@ -71,6 +80,55 @@ public class Handler implements Runnable {
         }
     }
 
+    private void handleRequestAddUserToGUI(String roomName) {
+        for (Room room: rooms) {
+            if (room.getName().equals(roomName)) {
+                room.addUser(this);
+                this.currRoom = room;
+                /* add yourself to the GUI. */
+                try { outQueue.put(Packet.addUserToGUI("CCC")); }
+                catch (InterruptedException exception) { exception.printStackTrace(); }
+
+                for(Handler handler: room.getUsers()) {
+                    System.out.println("How many people in the room");
+                    if(currRoom.getUsers().size() > 1 && handler != this) {
+                        try {
+                            /* add everyone for youself */
+                            outQueue.put(Packet.addUserToGUI("DDD"));
+                            /* add yourself for everyone else */
+                            handler.outQueue.put(Packet.addUserToGUI("CCC"));
+                        }
+                        catch (InterruptedException exception) { exception.printStackTrace(); }
+                    }
+                }
+            break;
+            }
+        }
+    }
+
+//    private void addUser(String roomName) {
+//        synchronized (rooms) {
+//            for (Room room: rooms) {
+//                if (room.getName().equals(roomName)) {
+//                    room.addUser(this);
+//                    for(Handler handler: room.getUsers()) {
+//                        System.out.println("How many people in the room");
+//                        if(handler != this) {
+//                            try { outQueue.put(Packet.addUserToGUI("CCC")); }
+//                            catch (InterruptedException exception) { exception.printStackTrace(); } } } } } }
+//    }
+
+    private void removeUser() {
+        synchronized (rooms) {
+            for (Room room: rooms) {
+                if (room.equals(currRoom)) {
+                    room.removeUser(this);
+                }
+            }
+            //TODO: maybe send a packet here to InputHandler to remove the user from the GUI.
+        }
+    }
+
     private void handleCreateRoom(String name) {
         boolean answer = true;
         synchronized (rooms) {
@@ -80,7 +138,10 @@ public class Handler implements Runnable {
                     break;
                 }
             }
-            if(answer) { rooms.add(new Room(name)); }
+            if(answer) {
+                this.currRoom = new Room(name);
+                rooms.add(currRoom);
+            }
         }
         try {
             outQueue.put(Packet.ackCreateRoom(answer));
@@ -95,6 +156,7 @@ public class Handler implements Runnable {
         synchronized (rooms) {
             for (Room room : rooms) {
                 roomsNames.add(room.getName());
+                System.out.println(room.getName());
             }
         }
 //        roomsNames.add(String.valueOf(ThreadLocalRandom.current().nextInt(1, 1000 + 1)));
@@ -107,7 +169,11 @@ public class Handler implements Runnable {
 
     private void handleSendMessage(String messageToSend) {
         try {
-            outQueue.put(Packet.receiveMessage(messageToSend));
+            for (Handler handler: this.currRoom.getUsers()) {
+                if(handler != this) {
+                    handler.outQueue.put(Packet.receiveMessage(messageToSend));
+                }
+            }
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

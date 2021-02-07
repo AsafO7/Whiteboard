@@ -59,7 +59,7 @@ public class Board extends Application{
     private Text userList = new Text("Here will be displayed the online users in the room."),
             chat = new Text("Here will be the chat"),
             topM = new Text("Welcome to Whiteboard! Draw your minds out!"),
-            user;
+            user = new Text("AAA");
 
     final String pSTitle = "Password too short", pSText = "Password must be at least 6 characters long.",
             regisTitle = "Successfully registered", regisText = "You've been successfully registered and logged in.",
@@ -497,7 +497,7 @@ public class Board extends Application{
         /******************************** Create room button event handler *******************************/
 
         createR.setOnAction(e -> {
-            if(isLoggedIn) {
+
                 TextField roomName = new TextField();
                 Button btn = new Button("OK");
 
@@ -511,7 +511,7 @@ public class Board extends Application{
                 final Stage dialog = new Stage();
                 dialog.initModality(Modality.NONE);
                 dialog.initOwner(stage);
-                Scene dialogScene = new Scene(textBox, 150, 50);
+                Scene dialogScene = new Scene(textBox, 200, 90);
                 dialog.setScene(dialogScene);
                 dialog.show();
 
@@ -534,82 +534,85 @@ public class Board extends Application{
                     if(roomName.getText().trim().length() == 0) {
                         displayAlert(BLANK_ROOM_TITLE, BLANK_ROOM_MSG);
                     }
-                    else if(!roomsNames.isEmpty() && roomsNames.contains(roomName.getText())) {
-                        displayAlert(SAME_ROOM_NAME_TITLE, SAME_ROOM_NAME_MSG);
-                    }
+                    //TODO: this is no good. talk to the server to check if this room really exists.
+//                    else if(!roomsNames.isEmpty() && roomsNames.contains(roomName.getText())) {
+//                        displayAlert(SAME_ROOM_NAME_TITLE, SAME_ROOM_NAME_MSG);
+//                    }
                     else {
                         try {
+                            input.setRoomName(roomName.getText());
                             outQueue.put(Packet.createRoom(roomName.getText()));
-                            roomsNames.add(roomName.getText());
-                            input.setHost(user.getText());
+                            //roomsNames.add(roomName.getText());
+                            //input.setHost(user.getText());
                         } catch (InterruptedException interruptedException) {
                             interruptedException.printStackTrace();
                         }
                     }
                     dialog.close();
                 });
-            }
-            else { displayAlert("", enterLobbyText); }
+
+           // else { displayAlert("", enterLobbyText); }
         });
 
         /******************************** Login button event handler *******************************/
 
-        login.setOnAction(e -> {
-            if(isLoggedIn) return;
-
-            Button confirm = new Button("Login/Register");
-            TextField nickname = new TextField();
-            PasswordField password = new PasswordField();
-            Label username = new Label("Username:");
-            Label pass = new Label("Password");
-
-            GridPane loginWindow = new GridPane();
-            loginWindow.setPadding(new Insets(GRID_MENU_SPACING,GRID_MENU_SPACING,GRID_MENU_SPACING,ROOM_SPACING));
-            loginWindow.setHgap(GRID_MENU_SPACING);
-            loginWindow.setVgap(GRID_MENU_SPACING);
-
-            // Arranging items on the window.
-            GridPane.setConstraints(username, 0, 0);
-            GridPane.setConstraints(nickname, 1, 0);
-            GridPane.setConstraints(pass, 0, 1);
-            GridPane.setConstraints(password, 1, 1);
-            GridPane.setConstraints(confirm,1,2);
-
-            loginWindow.getChildren().addAll(username, nickname, pass, password, confirm);
-
-            Stage signIn = new Stage();
-            signIn.setTitle("Login screen");
-            signIn.initModality(Modality.NONE);
-            signIn.initOwner(stage);
-            Scene loginScene = new Scene(loginWindow, LOGIN_WINDOW_WIDTH, LOGIN_WINDOW_HEIGHT);
-            signIn.setScene(loginScene);
-            signIn.show();
-
-            confirm.setOnAction(e1 -> {
-                if(nickname.getText().trim().length() == 0) {
-                    displayAlert("", emptyUsernameText);
-                }
-                // Password must have at least 6 characters.
-                else if(password.getText().length() < 6) {
-                    displayAlert(pSTitle, pSText);
-                }
-                else {
-                    connectToDatabase(nickname.getText(), password.getText());
-                    if(isLoggedIn) {
-                        Text helloMsg = new Text("Hello " + nickname.getText());
-                        helloMsg.setStyle(CssLayouts.cssBottomLayoutText);
-                        bottomM.getChildren().add(helloMsg);
-                        signIn.close();
-                        login.setVisible(false);
-                        try {
-                            outQueue.put(Packet.requestRoomsNames());
-                        } catch (InterruptedException interruptedException) {
-                            interruptedException.printStackTrace();
-                        }
-                    }
-                }
-            });
-        });
+//        login.setOnAction(e -> {
+//            if(isLoggedIn) return;
+//
+//            Button confirm = new Button("Login/Register");
+//            TextField nickname = new TextField();
+//            PasswordField password = new PasswordField();
+//            Label username = new Label("Username:");
+//            Label pass = new Label("Password");
+//
+//            GridPane loginWindow = new GridPane();
+//            loginWindow.setPadding(new Insets(GRID_MENU_SPACING,GRID_MENU_SPACING,GRID_MENU_SPACING,ROOM_SPACING));
+//            loginWindow.setHgap(GRID_MENU_SPACING);
+//            loginWindow.setVgap(GRID_MENU_SPACING);
+//
+//            // Arranging items on the window.
+//            GridPane.setConstraints(username, 0, 0);
+//            GridPane.setConstraints(nickname, 1, 0);
+//            GridPane.setConstraints(pass, 0, 1);
+//            GridPane.setConstraints(password, 1, 1);
+//            GridPane.setConstraints(confirm,1,2);
+//
+//            loginWindow.getChildren().addAll(username, nickname, pass, password, confirm);
+//
+//            Stage signIn = new Stage();
+//            signIn.setTitle("Login screen");
+//            signIn.initModality(Modality.NONE);
+//            signIn.initOwner(stage);
+//            Scene loginScene = new Scene(loginWindow, LOGIN_WINDOW_WIDTH, LOGIN_WINDOW_HEIGHT);
+//            signIn.setScene(loginScene);
+//            signIn.show();
+//
+//            confirm.setOnAction(e1 -> {
+//                if(nickname.getText().trim().length() == 0) {
+//                    displayAlert("", emptyUsernameText);
+//                }
+//                // Password must have at least 6 characters.
+//                else if(password.getText().length() < 6) {
+//                    displayAlert(pSTitle, pSText);
+//                }
+//                else {
+//                    //TODO: send a packet with string to the server for identification.
+//                    //connectToDatabase(nickname.getText(), password.getText());
+//                    if(isLoggedIn) {
+//                        Text helloMsg = new Text("Hello " + nickname.getText());
+//                        helloMsg.setStyle(CssLayouts.cssBottomLayoutText);
+//                        bottomM.getChildren().add(helloMsg);
+//                        signIn.close();
+//                        login.setVisible(false);
+//                        try {
+//                            outQueue.put(Packet.requestRoomsNames());
+//                        } catch (InterruptedException interruptedException) {
+//                            interruptedException.printStackTrace();
+//                        }
+//                    }
+//                }
+//            });
+//        });
 
         /******************************** Dividing the lobby scene layout into sections and creating the scene ********************************/
 
@@ -651,6 +654,13 @@ public class Board extends Application{
         stage.show();
         stage.setMinWidth(stage.getWidth());
         stage.setMinHeight(stage.getHeight());
+
+        try {
+            outQueue.put(Packet.requestRoomsNames());
+            //input.setUser(user.getText());
+        } catch (InterruptedException interruptedException) {
+            interruptedException.printStackTrace();
+        }
     }
 
 
@@ -677,51 +687,51 @@ public class Board extends Application{
         catch (NumberFormatException e) { return DEFAULT_ARC_VALUE; }
     }
 
-    private void connectToDatabase(String username, String password) {
-
-        // connect to database books and query database.
-        try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
-            // specify JdbcRowSet properties
-            rowSet.setUrl(DATABASE_URL);
-            rowSet.setUsername(USERNAME);
-            rowSet.setPassword(PASSWORD);
-            // Get every user from the database to check if the client's username exists.
-            rowSet.setCommand("SELECT * FROM users WHERE username = ?"); // set query
-            rowSet.setString(1, username);
-            rowSet.execute(); // execute query
-
-            // Register the new user.
-            if(!rowSet.next()) {
-                // add user to database.
-                rowSet.moveToInsertRow();
-                rowSet.updateString("username", username);
-                rowSet.updateString("password", password);
-                rowSet.insertRow();
-                isLoggedIn = true;
-                user = new Text(username);
-                input.setUser(user.getText());
-                displayAlert(regisTitle, regisText);
-            }
-            else {
-                // whiteboard.client.User exists but password is wrong.
-                if(!rowSet.getObject(2).equals(password)) {
-                    displayAlert(pWTitle, pWText);
-                }
-                // whiteboard.client.User logged in.
-                else {
-                    isLoggedIn = true;
-                    user = new Text(username);
-                    input.setUser(user.getText());
-                    displayAlert(signInTitle, signInText);
-                }
-            }
-        }
-        catch (SQLException sqlException)
-        {
-            sqlException.printStackTrace();
-            System.exit(1);
-        }
-    }
+//    private void connectToDatabase(String username, String password) {
+//
+//        // connect to database books and query database.
+//        try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
+//            // specify JdbcRowSet properties
+//            rowSet.setUrl(DATABASE_URL);
+//            rowSet.setUsername(USERNAME);
+//            rowSet.setPassword(PASSWORD);
+//            // Get every user from the database to check if the client's username exists.
+//            rowSet.setCommand("SELECT * FROM users WHERE username = ?"); // set query
+//            rowSet.setString(1, username);
+//            rowSet.execute(); // execute query
+//
+//            // Register the new user.
+//            if(!rowSet.next()) {
+//                // add user to database.
+//                rowSet.moveToInsertRow();
+//                rowSet.updateString("username", username);
+//                rowSet.updateString("password", password);
+//                rowSet.insertRow();
+//                isLoggedIn = true;
+//                user = new Text(username);
+//                input.setUser(user.getText());
+//                displayAlert(regisTitle, regisText);
+//            }
+//            else {
+//                // whiteboard.client.User exists but password is wrong.
+//                if(!rowSet.getObject(2).equals(password)) {
+//                    displayAlert(pWTitle, pWText);
+//                }
+//                // whiteboard.client.User logged in.
+//                else {
+//                    isLoggedIn = true;
+//                    user = new Text(username);
+//                    input.setUser(user.getText());
+//                    displayAlert(signInTitle, signInText);
+//                }
+//            }
+//        }
+//        catch (SQLException sqlException)
+//        {
+//            sqlException.printStackTrace();
+//            System.exit(1);
+//        }
+//    }
 
     // To prevent repeated code.
     private void displayAlert(String title, String text) {
