@@ -657,7 +657,8 @@ public class Board extends Application{
 
         try {
             outQueue.put(Packet.requestRoomsNames());
-            //input.setUser(user.getText());
+            //TODO: switch the string here with a name of the user's choice.
+            outQueue.put(Packet.addOnlineUser("AAA"));
         } catch (InterruptedException interruptedException) {
             interruptedException.printStackTrace();
         }
@@ -713,11 +714,11 @@ public class Board extends Application{
 //                displayAlert(regisTitle, regisText);
 //            }
 //            else {
-//                // whiteboard.client.User exists but password is wrong.
+//                // whiteboard.client.whiteboard.server.User exists but password is wrong.
 //                if(!rowSet.getObject(2).equals(password)) {
 //                    displayAlert(pWTitle, pWText);
 //                }
-//                // whiteboard.client.User logged in.
+//                // whiteboard.client.whiteboard.server.User logged in.
 //                else {
 //                    isLoggedIn = true;
 //                    user = new Text(username);
@@ -750,7 +751,5 @@ public class Board extends Application{
     //TODO: have the server take care of database requests.
     //TODO: make the cursor look like a pen.
     //TODO: maybe add background image to the other menus.
-    //TODO: Make a functional chat box.
-    //TODO: show the users in a room.
 }
 

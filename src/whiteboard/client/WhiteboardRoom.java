@@ -44,7 +44,7 @@ public class WhiteboardRoom {
 
     private final String[] shapes = {"Brush", "Line", "Oval", "Rectangle", "Rounded Rectangle", "Text"};
     private final ComboBox<String> shapeChooser = new ComboBox<>();
-    private final Stack<MyDraw> myDraws = new Stack<>();
+    public final Stack<MyDraw> myDraws = new Stack<>();
     private final Stack<MyDraw> deletedDraws = new Stack<>();
 
     private boolean toFill = false, isRoundRectChosen = false;
@@ -66,6 +66,8 @@ public class WhiteboardRoom {
     public VBox getOnlineUsersPanel() {
         return leftMenu;
     }
+
+    public List<Text> getOnlineUsers() { return users; }
 
     public Scene showBoard(Stage stage, Text user, Scene lobby, BlockingQueue<Packet> outQueue) {
 
@@ -98,9 +100,9 @@ public class WhiteboardRoom {
             CheckBox fillShape = new CheckBox("Fill Shape");
             fillShape.setStyle(CssLayouts.cssBottomLayoutText);
 
-            users.add(user);
-            // This line prevents text overflow.
-            users.get(users.size() - 1).setWrappingWidth(TEXT_WRAPPING_WIDTH);
+//            users.add(user);
+//            // This line prevents text overflow.
+//            users.get(users.size() - 1).setWrappingWidth(TEXT_WRAPPING_WIDTH);
 
             /******************************** Whiteboard scene ********************************/
 
@@ -231,14 +233,13 @@ public class WhiteboardRoom {
 
                     /* backToLobby button functionality. */
                     if(e.getSource() == backToLobby) {
-                        /* Maybe switch to a scene that takes care of lobby window */
                         leftMenu.getChildren().remove(user);
                         //users.remove(user);
                         if(isHost) { isHost = false; }
                         //TODO: make the next user in users the host.
                         chatBox.getChildren().clear();
                         try {
-                            outQueue.put(Packet.removeUser());
+                            outQueue.put(Packet.requestRemoveUserFromGUI(user.getText()));
                             outQueue.put(Packet.requestRoomsNames());
                         } catch (InterruptedException interruptedException) {
                             interruptedException.printStackTrace();
@@ -361,6 +362,16 @@ public class WhiteboardRoom {
                 }
                 repaint();
                 deletedDraws.clear();
+            });
+
+            canvas.setOnMouseReleased(e -> {
+                //TODO: send the drawing to the server.
+                //myDraws.peek();
+                try {
+                    outQueue.put(Packet.requestCreateAllDrawing(myDraws.peek()));
+                } catch (InterruptedException exception) {
+                    exception.printStackTrace();
+                }
             });
 
             //TODO: search for paint brush icons. maybe put the picture in a .jar file.

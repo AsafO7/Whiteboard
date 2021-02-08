@@ -14,7 +14,7 @@ public class Server {
     private static Handler handler;
     private static Thread handlerThread;
 
-    private static List<Room> rooms = Collections.synchronizedList(new ArrayList<Room>());
+    private static List<Room> rooms = Collections.synchronizedList(new ArrayList<>());
 
 //    //    For the purpose of testing "Refresh Rooms" on the client:
 //    private static List<Room> rooms = Collections.synchronizedList(new ArrayList<Room>(Arrays.asList(

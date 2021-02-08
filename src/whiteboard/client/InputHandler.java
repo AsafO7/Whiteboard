@@ -28,8 +28,8 @@ public class InputHandler implements Runnable {
     private final Socket socket;
     private final VBox lobby;
     private BlockingQueue<Packet> outQueue;
-    private Text user = new Text("AAA"), host = new Text("BBB");
-    private WhiteboardRoom currRoom;
+    private Text user = new Text("AAA");
+    private WhiteboardRoom myRoom = null;
     private String roomName = "";
 
     private List<WhiteboardRoom> drawingRooms = new ArrayList<>();
@@ -56,6 +56,10 @@ public class InputHandler implements Runnable {
                 Packet packet = (Packet) in.readObject();
 
                 switch (packet.getType()) {
+                    case SET_USERNAME:
+                        String username = packet.getUsername();
+                        Platform.runLater(() -> handlerSetUser(username));
+                        break;
                     case ROOMS_NAMES:
                         List<String> roomsNames = packet.getRoomsNames();
                         Platform.runLater(() -> this.handleRoomsList(roomsNames));
@@ -65,8 +69,7 @@ public class InputHandler implements Runnable {
                             Platform.runLater(this::handleNewRoomTransfer);
                         }
                         else {
-                            //TODO: display a message room name already taken.
-                            displayAlert(SAME_ROOM_NAME_TITLE, SAME_ROOM_NAME_MSG);
+                            //TODO: find a way to display alert for room of the same name
                         }
                         break;
                     case  RECEIVE_MSG:
@@ -74,8 +77,16 @@ public class InputHandler implements Runnable {
                         Platform.runLater(() -> this.handleReceivedMessage(msg));
                         break;
                     case ADD_USER_TO_GUI:
-                        String user = packet.getUserName();
+                        String user = packet.getUsername();
                         Platform.runLater(() -> addUserToGUI(user));
+                        break;
+                    case REMOVE_USER_FROM_GUI:
+                        List<String> users = packet.getRoomUsers();
+                        Platform.runLater(() -> removeUserFromGUI(users));
+                        break;
+                    case CREATE_DRAWING:
+                        List<MyDraw> drawings = packet.sendAllDrawings();
+                        Platform.runLater(() -> this.receiveAllDrawings(drawings));
                 }
             }
         }
@@ -91,20 +102,31 @@ public class InputHandler implements Runnable {
         }
     }
 
-    private void addUserToGUI(String user) {
-        currRoom.getOnlineUsersPanel().getChildren().add(new Text(user));
+    private void handlerSetUser(String username) {
+        this.user.setText(username);
     }
 
-    // NOT WORKING OBVIOUSLY
+    private void removeUserFromGUI(List<String> users) {
+        myRoom.getOnlineUsersPanel().getChildren().clear();
+        for (String user: users) {
+            myRoom.getOnlineUsersPanel().getChildren().add(new Text(user));
+        }
+    }
+
+    private void addUserToGUI(String user) {
+        myRoom.getOnlineUsersPanel().getChildren().add(new Text(user));
+        myRoom.getOnlineUsers().add(new Text(user));
+    }
+
     private void handleNewRoomTransfer() {
         String roomName = this.roomName;
-        currRoom = new WhiteboardRoom(this.host.getText());
+        myRoom = new WhiteboardRoom(this.user.getText());
         try {
             outQueue.put(Packet.requestAddUserToGUI(roomName));
         } catch (InterruptedException exception) {
             exception.printStackTrace();
         }
-        stage.setScene(currRoom.showBoard(stage,host,scene, outQueue));
+        stage.setScene(myRoom.showBoard(stage,user,scene, outQueue));
     }
 
     //TODO: different users don't have the same rooms list.
@@ -129,13 +151,13 @@ public class InputHandler implements Runnable {
     //TODO: in this function the user will receive all the drawings currently in the room.
     private void addEventListener(VBox lobby, int i, List<String> roomsNames) {
         lobby.getChildren().get(i).setOnMouseClicked(e -> {
-            currRoom = new WhiteboardRoom(this.user.getText());
+            myRoom = new WhiteboardRoom(this.user.getText());
             try {
                 outQueue.put(Packet.requestAddUserToGUI(roomsNames.get(i)));
             } catch (InterruptedException exception) {
                 exception.printStackTrace();
             }
-            stage.setScene(currRoom.showBoard(stage, user, scene, outQueue));
+            stage.setScene(myRoom.showBoard(stage, user, scene, outQueue));
 //            stage.setScene(drawingRooms.get(i).showBoard(stage,user,scene, outQueue));
 //            drawingRooms.get(i).repaint();
         });
@@ -152,26 +174,16 @@ public class InputHandler implements Runnable {
         msgToReceive.setStyle(CssLayouts.cssChatText);
         msgToReceive.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
         //System.out.println(currRoom);
-        currRoom.getChatBox().getChildren().add(msgToReceive);
+        myRoom.getChatBox().getChildren().add(msgToReceive);
     }
-
-//    public void setHost(String host) {
-//        this.host.setText(host);
-//    }
-//
-//    public void setUser(String user) {
-//        this.user.setText(user);
-//    }
 
     public void setRoomName(String name) {
         this.roomName = name;
     }
 
-    private void displayAlert(String title, String text) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(text);
-        alert.showAndWait();
+    public void receiveAllDrawings(List<MyDraw> drawings) {
+        if(myRoom == null) { return; }
+        myRoom.myDraws.clear();
+        myRoom.myDraws.addAll(drawings);
     }
 }

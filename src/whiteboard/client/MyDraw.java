@@ -3,9 +3,11 @@ package whiteboard.client;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 
-public abstract class MyDraw {
+import java.io.Serializable;
 
-    private final javafx.scene.paint.Color color;
+public abstract class MyDraw implements Serializable {
+
+    private final Color color;
     private final double thickness;
 
     public MyDraw(Color c, double thickness) {
@@ -16,7 +18,7 @@ public abstract class MyDraw {
     /* This function draws a shape depending on the class using it. */
     public abstract void Draw(GraphicsContext g);
 
-    public javafx.scene.paint.Color getColor() { return this.color; }
+    public Color getColor() { return this.color; }
 
     public double getThickness() { return thickness; }
 }
