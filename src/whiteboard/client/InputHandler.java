@@ -6,9 +6,9 @@ import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import whiteboard.Packet;
@@ -19,6 +19,8 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+
+//TODO: for EOF error check if you put break; in the switch.
 
 public class InputHandler implements Runnable {
 
@@ -31,8 +33,6 @@ public class InputHandler implements Runnable {
     private Text user = new Text("AAA");
     private WhiteboardRoom myRoom = null;
     private String roomName = "";
-
-    private List<WhiteboardRoom> drawingRooms = new ArrayList<>();
 
     private final String SAME_ROOM_NAME_TITLE = "Room already exists",
             SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.";
@@ -84,9 +84,17 @@ public class InputHandler implements Runnable {
                         List<String> users = packet.getRoomUsers();
                         Platform.runLater(() -> removeUserFromGUI(users));
                         break;
-                    case CREATE_DRAWING:
-                        List<MyDraw> drawings = packet.sendAllDrawings();
-                        Platform.runLater(() -> this.receiveAllDrawings(drawings));
+                    case REMOVE_USER_FROM_ROOM:
+                        Platform.runLater(() -> removeUserFromRoom());
+                        break;
+                    case NEW_DRAWING:
+                        List<CompleteDraw> drawings = packet.receiveAllDrawings();
+                        Platform.runLater(() -> this.updateDrawStack(drawings));
+                        break;
+                    case RECEIVE_CURRENT_DRAWINGS:
+                        List<CompleteDraw> currDrawings = packet.receiveAllDrawings();
+                        Platform.runLater(() -> this.updateDrawStack(currDrawings));
+                        break;
                 }
             }
         }
@@ -100,6 +108,11 @@ public class InputHandler implements Runnable {
                 }
             }
         }
+    }
+
+    private void removeUserFromRoom() {
+        myRoom.myDraws.clear();
+        myRoom = null;
     }
 
     private void handlerSetUser(String username) {
@@ -129,7 +142,7 @@ public class InputHandler implements Runnable {
         stage.setScene(myRoom.showBoard(stage,user,scene, outQueue));
     }
 
-    //TODO: different users don't have the same rooms list.
+    //different users don't have the same rooms list.
 
     /* This method will update the UI with the lobby rooms. */
     private void handleRoomsList(List<String> roomsNames) {
@@ -148,12 +161,14 @@ public class InputHandler implements Runnable {
         }
     }
 
-    //TODO: in this function the user will receive all the drawings currently in the room.
+    //in this function the user will receive all the drawings currently in the room.
+
     private void addEventListener(VBox lobby, int i, List<String> roomsNames) {
         lobby.getChildren().get(i).setOnMouseClicked(e -> {
             myRoom = new WhiteboardRoom(this.user.getText());
             try {
                 outQueue.put(Packet.requestAddUserToGUI(roomsNames.get(i)));
+                outQueue.put(Packet.requestCurrentDrawings(roomsNames.get(i)));
             } catch (InterruptedException exception) {
                 exception.printStackTrace();
             }
@@ -181,9 +196,41 @@ public class InputHandler implements Runnable {
         this.roomName = name;
     }
 
-    public void receiveAllDrawings(List<MyDraw> drawings) {
+    public void updateDrawStack(List<CompleteDraw> drawings) {
         if(myRoom == null) { return; }
         myRoom.myDraws.clear();
-        myRoom.myDraws.addAll(drawings);
+        for(int i = 0; i < drawings.size(); i++) {
+            myRoom.myDraws.add(convertToMyDraw(drawings.get(i)));
+        }
+        //myRoom.myDraws.addAll(drawingStack);
+        myRoom.repaint();
+    }
+
+    private MyDraw convertToMyDraw(CompleteDraw completeDraw) {
+        String shape = completeDraw.getShape();
+        Color color = Color.web(completeDraw.getColor());
+        switch (shape) {
+            case "MyBrush":
+                MyBrush drawing =  new MyBrush(completeDraw.getXPoints().get(0), completeDraw.getYPoints().get(0),
+                        color, completeDraw.getThickness(), completeDraw.isFill());
+                drawing.setXPoints(completeDraw.getXPoints());
+                drawing.setYPoints(completeDraw.getYPoints());
+                return drawing;
+            case "MyLine":
+                return new MyLine(completeDraw.getX1(), completeDraw.getY1(), completeDraw.getX2(), completeDraw.getY2(),
+                        color, completeDraw.getThickness());
+            case "MyRect":
+                return new MyRect(completeDraw.getX1(), completeDraw.getY1(), completeDraw.getX2(), completeDraw.getY2(),
+                        color, completeDraw.getThickness(), completeDraw.isFill());
+            case "MyRoundRect":
+                return new MyRoundRect(completeDraw.getX1(), completeDraw.getY1(), completeDraw.getX2(), completeDraw.getY2(),
+                        color, completeDraw.getThickness(), completeDraw.isFill(), completeDraw.getArcW(), completeDraw.getArcH());
+            case "MyOval":
+                return new MyOval(completeDraw.getX1(), completeDraw.getY1(), completeDraw.getX2(), completeDraw.getY2(),
+                        color, completeDraw.getThickness(), completeDraw.isFill());
+            case "TextBox":
+                return new TextBox(completeDraw.getX1(), completeDraw.getY1(), color, completeDraw.getText());
+        }
+        return null;
     }
 }

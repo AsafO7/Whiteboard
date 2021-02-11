@@ -1,8 +1,7 @@
 package whiteboard.server;
 
-import javafx.scene.text.Text;
 import whiteboard.Packet;
-import whiteboard.client.MyDraw;
+import whiteboard.client.CompleteDraw;
 
 import java.io.*;
 import java.net.Socket;
@@ -44,6 +43,7 @@ public class Handler implements Runnable {
                     case ADD_ONLINE_USER:
                         String user = packet.getUsername();
                         this.handleAddOnlineUser(user);
+                        break;
                     case GET_ROOMS:
                         this.handleGetRooms();
                         break;
@@ -60,9 +60,17 @@ public class Handler implements Runnable {
                         String username = packet.getUsername();
                         this.handleRequestRemoveUser(username);
                         break;
-                    case REQUEST_CREATE_ALL_DRAWINGS:
-                        MyDraw drawing = packet.getDrawing();
+                    case REQUEST_REMOVE_USER_FROM_ROOM:
+                        this.handleRequestRemoveUserFromRoom();
+                        break;
+                    case SEND_NEW_DRAWING:
+                        CompleteDraw drawing = packet.getDrawing();
                         this.handleAddNewDrawing(drawing);
+                        break;
+                    case REQUEST_CURRENT_DRAWINGS:
+                        String roomName = packet.getRoomName();
+                        this.handleRequestCurrDrawings(roomName);
+                        break;
                     default:
                         throw new Exception("Error: server received " + packet.getType() + " unexpected packet type");
                 }
@@ -85,6 +93,35 @@ public class Handler implements Runnable {
                     e.printStackTrace();
                 }
             }
+        }
+    }
+
+    private void handleRequestCurrDrawings(String roomName) {
+        for (Room room: rooms) {
+            if(room.getName().equals(roomName)) {
+                try {
+                    outQueue.put(Packet.receiveCurrentDrawings(new ArrayList<>(room.getDrawings())));
+                } catch (InterruptedException exception) {
+                    exception.printStackTrace();
+                }
+                break;
+            }
+        }
+
+//        try {
+//            outQueue.put(Packet.receiveCurrentDrawings(currRoom.getDrawings()));
+//        } catch (InterruptedException exception) {
+//            exception.printStackTrace();
+//        }
+    }
+
+    private void handleRequestRemoveUserFromRoom() {
+        //this.currRoom.getUsers().remove(this);
+        this.currRoom = null;
+        try {
+            outQueue.put(Packet.removeUserFromRoom());
+        } catch (InterruptedException exception) {
+            exception.printStackTrace();
         }
     }
 
@@ -226,13 +263,17 @@ public class Handler implements Runnable {
         }
     }
 
-    private void handleAddNewDrawing(MyDraw drawing) {
+    private void handleAddNewDrawing(CompleteDraw drawing) {
+        if(currRoom == null) { return; }
         synchronized (currRoom.getDrawings()) {
+
+            // Add the new drawing to the stack on the server side
             currRoom.getDrawings().add(drawing);
+
             synchronized (currRoom.getUsers()) {
                 for (Handler handler : this.currRoom.getUsers()) {
                     if (handler != this) {
-                        handler.sendAllDrawing();
+                        handler.sendAllDrawings();
                     }
                 }
             }
@@ -240,9 +281,10 @@ public class Handler implements Runnable {
     }
 
     //TODO: make a packet to send all drawings and receive all drawings
-    private void sendAllDrawing() {
+    //TODO: add the new drawing that was sent by Whiteboard before sending the drawing stack.
+    private void sendAllDrawings() {
         try {
-            this.outQueue.put(Packet.createAllDrawings(currRoom.getDrawings()));
+            this.outQueue.put(Packet.createAllDrawings(new ArrayList<>(currRoom.getDrawings())));
         }
         catch (InterruptedException e) {
             e.printStackTrace();

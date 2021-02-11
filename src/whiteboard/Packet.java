@@ -1,6 +1,6 @@
 package whiteboard;
 
-import whiteboard.client.MyDraw;
+import whiteboard.client.CompleteDraw;
 
 import java.io.Serializable;
 import java.util.List;
@@ -24,8 +24,12 @@ public class Packet implements Serializable {
         ADD_USER_TO_GUI,
         REQUEST_REMOVE_USER_FROM_GUI,
         REMOVE_USER_FROM_GUI,
-        REQUEST_CREATE_ALL_DRAWINGS,
-        CREATE_DRAWING,
+        REQUEST_REMOVE_USER_FROM_ROOM,
+        REMOVE_USER_FROM_ROOM,
+        SEND_NEW_DRAWING,
+        NEW_DRAWING,
+        REQUEST_CURRENT_DRAWINGS,
+        RECEIVE_CURRENT_DRAWINGS,
     }
 
     public Packet(Object obj, Type type) {
@@ -71,9 +75,17 @@ public class Packet implements Serializable {
 
     public static Packet removeUserFromGUI(List<String> users) { return new Packet(users, Type.REMOVE_USER_FROM_GUI); }
 
-    public static Packet requestCreateAllDrawing(MyDraw drawing) { return new Packet(drawing, Type.REQUEST_CREATE_ALL_DRAWINGS); }
+    public static Packet requestRemoveUserFromRoom() { return new Packet(null, Type.REQUEST_REMOVE_USER_FROM_ROOM); }
 
-    public static Packet createAllDrawings(List<MyDraw> drawing) { return new Packet(drawing, Type.CREATE_DRAWING); }
+    public static Packet removeUserFromRoom() { return new Packet(null, Type.REMOVE_USER_FROM_ROOM); }
+
+    public static Packet sendNewDrawing(CompleteDraw drawing) { return new Packet(drawing, Type.SEND_NEW_DRAWING); }
+
+    public static Packet createAllDrawings(List<CompleteDraw> drawings) { return new Packet(drawings, Type.NEW_DRAWING); }
+
+    public static Packet requestCurrentDrawings(String roomName) { return new Packet(roomName, Type.REQUEST_CURRENT_DRAWINGS); }
+
+    public static Packet receiveCurrentDrawings(List<CompleteDraw> drawings) { return new Packet(drawings, Type.RECEIVE_CURRENT_DRAWINGS); }
 
     /******************************** Type errors handling ********************************/
 
@@ -85,7 +97,7 @@ public class Packet implements Serializable {
     }
 
     public String getRoomName() throws TypeError{
-        if(type != Type.CREATE_ROOM) {
+        if(type != Type.CREATE_ROOM && type != Type.REQUEST_CURRENT_DRAWINGS) {
             throw new TypeError(Type.CREATE_ROOM, type);
         }
         return (String)obj;
@@ -106,18 +118,18 @@ public class Packet implements Serializable {
         return (List<String>) obj;
     }
 
-    public MyDraw getDrawing() throws TypeError {
-        if(type != Type.REQUEST_CREATE_ALL_DRAWINGS) {
-            throw new TypeError(Type.REQUEST_CREATE_ALL_DRAWINGS, type);
+    public CompleteDraw getDrawing() throws TypeError {
+        if(type != Type.SEND_NEW_DRAWING) {
+            throw new TypeError(Type.SEND_NEW_DRAWING, type);
         }
-        return (MyDraw) obj;
+        return (CompleteDraw) obj;
     }
 
-    public List<MyDraw> sendAllDrawings() throws TypeError {
-        if(type != Type.CREATE_DRAWING) {
-            throw new TypeError(Type.CREATE_DRAWING, type);
+    public List<CompleteDraw> receiveAllDrawings() throws TypeError {
+        if(type != Type.NEW_DRAWING && type != Type.RECEIVE_CURRENT_DRAWINGS) {
+            throw new TypeError(Type.NEW_DRAWING, type);
         }
-        return (List<MyDraw>) obj;
+        return (List<CompleteDraw>) obj;
     }
 
 //    public String getUserToRemove() throws TypeError {

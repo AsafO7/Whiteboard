@@ -233,13 +233,14 @@ public class WhiteboardRoom {
 
                     /* backToLobby button functionality. */
                     if(e.getSource() == backToLobby) {
-                        leftMenu.getChildren().remove(user);
+                        //leftMenu.getChildren().remove(user);
                         //users.remove(user);
                         if(isHost) { isHost = false; }
                         //TODO: make the next user in users the host.
                         chatBox.getChildren().clear();
                         try {
                             outQueue.put(Packet.requestRemoveUserFromGUI(user.getText()));
+                            outQueue.put(Packet.requestRemoveUserFromRoom());
                             outQueue.put(Packet.requestRoomsNames());
                         } catch (InterruptedException interruptedException) {
                             interruptedException.printStackTrace();
@@ -367,8 +368,48 @@ public class WhiteboardRoom {
             canvas.setOnMouseReleased(e -> {
                 //TODO: send the drawing to the server.
                 //myDraws.peek();
+                CompleteDraw drawing = null;
+                String colorInHexa = String.format( "#%02X%02X%02X",
+                        (int)( myDraws.peek().getColor().getRed() * 255 ),
+                        (int)( myDraws.peek().getColor().getGreen() * 255 ),
+                        (int)( myDraws.peek().getColor().getBlue() * 255 ) );
+                if(myDraws.peek() instanceof MyBrush) {
+                    /* String color, double thickness, double x1, double y1, double x2, double y2, boolean fill, int arcW, int arcH,
+                        ArrayList<Double> xPoints, ArrayList<Double> yPoints) */
+                    drawing = new CompleteDraw(colorInHexa, ((MyBrush) myDraws.peek()).getThickness(), -1, -1, -1, -1,
+                            ((MyBrush) myDraws.peek()).isFill(), -1, -1, ((MyBrush) myDraws.peek()).getXPoints(),
+                            ((MyBrush) myDraws.peek()).getYPoints(), /*gc,*/ "MyBrush");
+                }
+                else if(myDraws.peek() instanceof MyLine) {
+                    drawing = new CompleteDraw(colorInHexa, ((MyLine) myDraws.peek()).getThickness(), ((MyLine) myDraws.peek()).getX1(),
+                            ((MyLine) myDraws.peek()).getY1(), ((MyLine) myDraws.peek()).getX2(), ((MyLine) myDraws.peek()).getY2(),
+                            false, -1, -1, null, null, /*gc,*/ "MyLine");
+                }
+                else if(myDraws.peek() instanceof MyOval) {
+                    drawing = new CompleteDraw(colorInHexa, ((MyOval) myDraws.peek()).getThickness(), ((MyOval) myDraws.peek()).getX1(),
+                            ((MyOval) myDraws.peek()).getY1(), ((MyOval) myDraws.peek()).getWidth(), ((MyOval) myDraws.peek()).getHeight(),
+                            ((MyOval) myDraws.peek()).toFill(), -1, -1, null, null, /*gc,*/ "MyOval");
+                }
+                else if(myDraws.peek() instanceof MyRect) {
+                    drawing = new CompleteDraw(colorInHexa, ((MyRect) myDraws.peek()).getThickness(), ((MyRect) myDraws.peek()).getX1(),
+                            ((MyRect) myDraws.peek()).getY1(), ((MyRect) myDraws.peek()).getWidth(), ((MyRect) myDraws.peek()).getHeight(),
+                            ((MyRect) myDraws.peek()).toFill(), -1, -1, null, null, /*gc,*/ "MyRect");
+                }
+                else if(myDraws.peek() instanceof MyRoundRect) {
+                    drawing = new CompleteDraw(colorInHexa, ((MyRoundRect) myDraws.peek()).getThickness(), ((MyRoundRect) myDraws.peek()).getX1(),
+                            ((MyRoundRect) myDraws.peek()).getY1(), ((MyRoundRect) myDraws.peek()).getWidth(),
+                            ((MyRoundRect) myDraws.peek()).getHeight(), ((MyRoundRect) myDraws.peek()).toFill(),
+                            ((MyRoundRect) myDraws.peek()).getArcWidth(), ((MyRoundRect) myDraws.peek()).getArcHeight(),
+                            null, null, /*gc,*/ "MyRoundRect");
+                }
+                else if(myDraws.peek() instanceof TextBox) {
+                    drawing = new CompleteDraw(colorInHexa, ((TextBox) myDraws.peek()).getThickness(), ((TextBox) myDraws.peek()).getX(),
+                            ((TextBox) myDraws.peek()).getY(), -1, -1,
+                            false, -1, -1, null, null, /*gc,*/ "TextBox");
+                    drawing.setText(((TextBox) myDraws.peek()).getText());
+                }
                 try {
-                    outQueue.put(Packet.requestCreateAllDrawing(myDraws.peek()));
+                    outQueue.put(Packet.sendNewDrawing(drawing));
                 } catch (InterruptedException exception) {
                     exception.printStackTrace();
                 }

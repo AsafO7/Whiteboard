@@ -8,8 +8,8 @@ public class MyBrush extends MyDraw {
 
     //private boolean hasPathBegun = false;
     private final boolean fill;
-    private final ArrayList<Double> xPoints = new ArrayList<>();
-    private final ArrayList<Double> yPoints = new ArrayList<>();
+    private ArrayList<Double> xPoints = new ArrayList<>();
+    private ArrayList<Double> yPoints = new ArrayList<>();
 
     public MyBrush(double x, double y, Color c, double thickness, boolean fill) {
         super(c, thickness);
@@ -21,6 +21,26 @@ public class MyBrush extends MyDraw {
     public void addPoint(double x, double y) {
         this.xPoints.add(x);
         this.yPoints.add(y);
+    }
+
+    public boolean isFill() {
+        return this.fill;
+    }
+
+    public ArrayList<Double> getXPoints() {
+        return xPoints;
+    }
+
+    public ArrayList<Double> getYPoints() {
+        return yPoints;
+    }
+
+    public void setXPoints(ArrayList<Double> pathX) {
+        this.xPoints = pathX;
+    }
+
+    public void setYPoints(ArrayList<Double> pathY) {
+        this.yPoints = pathY;
     }
 
 //    @Override
