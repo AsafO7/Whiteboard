@@ -88,7 +88,8 @@ public class InputHandler implements Runnable {
                             Platform.runLater(this::handleNewRoomTransfer);
                         }
                         else {
-                            //TODO: find a way to display alert for room of the same name
+                            outQueue.put(Packet.requestRoomsNames());
+                            //TODO: find a way to display alert for not being able to join the room (or don't, I don't give a fuck)
                         }
                         break;
                 }

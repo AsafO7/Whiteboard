@@ -127,6 +127,9 @@ public class Handler implements Runnable {
                     }
                 }
             }
+            if(room.getUsers().isEmpty()) {
+                rooms.remove(room);
+            }
         }
         else {
             //TODO: do some error handling if we call this function when we are not in a room
@@ -175,9 +178,11 @@ public class Handler implements Runnable {
                     room.addUser(this);
                     this.currRoom = room;
                     break; } } }
-        updateUsersListGUI(false);
+        if (currRoom != null) {
+            updateUsersListGUI(false);
+        }
         try {
-            outQueue.put(Packet.ackJoinRoom(true));
+            outQueue.put(Packet.ackJoinRoom(currRoom != null));
         } catch (InterruptedException exception) {
             exception.printStackTrace();
         }
