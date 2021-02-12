@@ -4,14 +4,11 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -20,22 +17,15 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import whiteboard.Connection;
 import whiteboard.Packet;
-import whiteboard.SyncQueue;
 
-import javax.sql.rowset.JdbcRowSet;
-import javax.sql.rowset.RowSetProvider;
 import java.awt.*;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Board extends Application{
@@ -638,12 +628,14 @@ public class Board extends Application{
 
     input = new InputHandler(socket, lobbies, stage, lobby, outQueue);
     Thread threadInputHandler = new Thread(input);
-        threadInputHandler.start();
+    threadInputHandler.setDaemon(true);
+    threadInputHandler.start();
 
     /********************************** Client side ************************************/
 
     OutputHandler output = new OutputHandler(socket, outQueue);
     Thread threadOutputHandler = new Thread(output);
+    threadOutputHandler.setDaemon(true);
     threadOutputHandler.start();
 
     /******************************** Setting the stage ********************************/
@@ -658,7 +650,7 @@ public class Board extends Application{
         try {
             outQueue.put(Packet.requestRoomsNames());
             //TODO: switch the string here with a name of the user's choice.
-            outQueue.put(Packet.addOnlineUser("AAA"));
+            outQueue.put(Packet.setUsername("AAA"));
         } catch (InterruptedException interruptedException) {
             interruptedException.printStackTrace();
         }
@@ -751,5 +743,6 @@ public class Board extends Application{
     //TODO: have the server take care of database requests.
     //TODO: make the cursor look like a pen.
     //TODO: maybe add background image to the other menus.
+    //TODO: make users who exited, by clicking 'X' on the window, disappear from the users list in the server
 }
 

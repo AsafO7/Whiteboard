@@ -16,7 +16,6 @@ import whiteboard.Packet;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 
@@ -31,8 +30,8 @@ public class InputHandler implements Runnable {
     private final VBox lobby;
     private BlockingQueue<Packet> outQueue;
     private Text user = new Text("AAA");
-    private WhiteboardRoom myRoom = null;
-    private String roomName = "";
+    public WhiteboardRoom myRoom = null;
+    public String roomName = null;
 
     private final String SAME_ROOM_NAME_TITLE = "Room already exists",
             SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.";
@@ -56,7 +55,7 @@ public class InputHandler implements Runnable {
                 Packet packet = (Packet) in.readObject();
 
                 switch (packet.getType()) {
-                    case SET_USERNAME:
+                    case ACK_USERNAME:
                         String username = packet.getUsername();
                         Platform.runLater(() -> handlerSetUser(username));
                         break;
@@ -76,24 +75,21 @@ public class InputHandler implements Runnable {
                         String msg = packet.getMessageToReceive();
                         Platform.runLater(() -> this.handleReceivedMessage(msg));
                         break;
-                    case ADD_USER_TO_GUI:
-                        String user = packet.getUsername();
-                        Platform.runLater(() -> addUserToGUI(user));
-                        break;
-                    case REMOVE_USER_FROM_GUI:
+                    case UPDATE_USERS_LIST:
                         List<String> users = packet.getRoomUsers();
-                        Platform.runLater(() -> removeUserFromGUI(users));
-                        break;
-                    case REMOVE_USER_FROM_ROOM:
-                        Platform.runLater(() -> removeUserFromRoom());
+                        Platform.runLater(() -> updateUsersListGUI(users));
                         break;
                     case NEW_DRAWING:
                         List<CompleteDraw> drawings = packet.receiveAllDrawings();
                         Platform.runLater(() -> this.updateDrawStack(drawings));
                         break;
-                    case RECEIVE_CURRENT_DRAWINGS:
-                        List<CompleteDraw> currDrawings = packet.receiveAllDrawings();
-                        Platform.runLater(() -> this.updateDrawStack(currDrawings));
+                    case ACK_JOIN_ROOM:
+                        if(packet.getAckJoinRoom()) {
+                            Platform.runLater(this::handleNewRoomTransfer);
+                        }
+                        else {
+                            //TODO: find a way to display alert for room of the same name
+                        }
                         break;
                 }
             }
@@ -110,16 +106,11 @@ public class InputHandler implements Runnable {
         }
     }
 
-    private void removeUserFromRoom() {
-        myRoom.myDraws.clear();
-        myRoom = null;
-    }
-
     private void handlerSetUser(String username) {
         this.user.setText(username);
     }
 
-    private void removeUserFromGUI(List<String> users) {
+    private void updateUsersListGUI(List<String> users) {
         myRoom.getOnlineUsersPanel().getChildren().clear();
         for (String user: users) {
             myRoom.getOnlineUsersPanel().getChildren().add(new Text(user));
@@ -133,12 +124,7 @@ public class InputHandler implements Runnable {
 
     private void handleNewRoomTransfer() {
         String roomName = this.roomName;
-        myRoom = new WhiteboardRoom(this.user.getText());
-        try {
-            outQueue.put(Packet.requestAddUserToGUI(roomName));
-        } catch (InterruptedException exception) {
-            exception.printStackTrace();
-        }
+        myRoom = new WhiteboardRoom(this.user.getText(), this);
         stage.setScene(myRoom.showBoard(stage,user,scene, outQueue));
     }
 
@@ -165,14 +151,12 @@ public class InputHandler implements Runnable {
 
     private void addEventListener(VBox lobby, int i, List<String> roomsNames) {
         lobby.getChildren().get(i).setOnMouseClicked(e -> {
-            myRoom = new WhiteboardRoom(this.user.getText());
             try {
-                outQueue.put(Packet.requestAddUserToGUI(roomsNames.get(i)));
-                outQueue.put(Packet.requestCurrentDrawings(roomsNames.get(i)));
+                outQueue.put(Packet.requestJoinRoom(roomsNames.get(i)));
             } catch (InterruptedException exception) {
                 exception.printStackTrace();
             }
-            stage.setScene(myRoom.showBoard(stage, user, scene, outQueue));
+
 //            stage.setScene(drawingRooms.get(i).showBoard(stage,user,scene, outQueue));
 //            drawingRooms.get(i).repaint();
         });

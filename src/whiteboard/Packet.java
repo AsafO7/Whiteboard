@@ -12,24 +12,24 @@ public class Packet implements Serializable {
     private Object obj;
 
     public enum Type { // List of events
-        ADD_ONLINE_USER,
         SET_USERNAME,
+        ACK_USERNAME,
+        NACK_USERNAME,
         GET_ROOMS,
         ROOMS_NAMES,
         CREATE_ROOM,
         ACK_CREATE_ROOM,
         SEND_MSG,
         RECEIVE_MSG,
-        REQUEST_ADD_USER_TO_GUI,
-        ADD_USER_TO_GUI,
-        REQUEST_REMOVE_USER_FROM_GUI,
-        REMOVE_USER_FROM_GUI,
-        REQUEST_REMOVE_USER_FROM_ROOM,
-        REMOVE_USER_FROM_ROOM,
+        UPDATE_USERS_LIST,
         SEND_NEW_DRAWING,
+        REQUEST_EXIT_ROOM,
         NEW_DRAWING,
         REQUEST_CURRENT_DRAWINGS,
+        REQUEST_USERS_LIST_GUI,
         RECEIVE_CURRENT_DRAWINGS,
+        REQUEST_JOIN_ROOM,
+        ACK_JOIN_ROOM,
     }
 
     public Packet(Object obj, Type type) {
@@ -39,9 +39,9 @@ public class Packet implements Serializable {
 
     /************************************* Requests *************************************/
 
-    public static Packet addOnlineUser(String userName) { return new Packet(userName, Type.ADD_ONLINE_USER); }
-
     public static Packet setUsername(String userName) { return new Packet(userName, Type.SET_USERNAME); }
+
+    public static Packet ackUsername(String userName) { return new Packet(userName, Type.ACK_USERNAME); }
 
     // Creates a list of room names request.
     public static Packet createRoomsNames(List<String> roomsNames) {
@@ -61,33 +61,38 @@ public class Packet implements Serializable {
     // Confirms the room is created request.
     public static Packet ackCreateRoom(boolean answer) { return new Packet(answer, Type.ACK_CREATE_ROOM); }
 
+    public static Packet ackJoinRoom(boolean answer) { return new Packet(answer, Type.ACK_JOIN_ROOM); }
+
     public static Packet sendMessage(String msg) { return new Packet(msg, Type.SEND_MSG); }
 
     public static Packet receiveMessage(String msg) {
         return new Packet(msg, Type.RECEIVE_MSG);
     }
 
-    public static Packet requestAddUserToGUI(String user) { return new Packet(user, Type.REQUEST_ADD_USER_TO_GUI); }
+    public static Packet requestJoinRoom(String room) { return new Packet(room, Type.REQUEST_JOIN_ROOM); }
 
-    public static Packet addUserToGUI(String user) { return new Packet(user, Type.ADD_USER_TO_GUI); }
+    public static Packet updateUsersListGUI(List<String> users) { return new Packet(users, Type.UPDATE_USERS_LIST); }
 
-    public static Packet requestRemoveUserFromGUI(String user) { return new Packet(user, Type.REQUEST_REMOVE_USER_FROM_GUI); }
-
-    public static Packet removeUserFromGUI(List<String> users) { return new Packet(users, Type.REMOVE_USER_FROM_GUI); }
-
-    public static Packet requestRemoveUserFromRoom() { return new Packet(null, Type.REQUEST_REMOVE_USER_FROM_ROOM); }
-
-    public static Packet removeUserFromRoom() { return new Packet(null, Type.REMOVE_USER_FROM_ROOM); }
+    public static Packet requestExitRoom() { return new Packet(null, Type.REQUEST_EXIT_ROOM); }
 
     public static Packet sendNewDrawing(CompleteDraw drawing) { return new Packet(drawing, Type.SEND_NEW_DRAWING); }
 
     public static Packet createAllDrawings(List<CompleteDraw> drawings) { return new Packet(drawings, Type.NEW_DRAWING); }
 
-    public static Packet requestCurrentDrawings(String roomName) { return new Packet(roomName, Type.REQUEST_CURRENT_DRAWINGS); }
+    public static Packet requestCurrentDrawings() { return new Packet(null, Type.REQUEST_CURRENT_DRAWINGS); }
 
-    public static Packet receiveCurrentDrawings(List<CompleteDraw> drawings) { return new Packet(drawings, Type.RECEIVE_CURRENT_DRAWINGS); }
+    public static Packet requestUsersListGUI() { return new Packet(null, Type.REQUEST_USERS_LIST_GUI); }
+
+    //public static Packet receiveCurrentDrawings(List<CompleteDraw> drawings) { return new Packet(drawings, Type.RECEIVE_CURRENT_DRAWINGS); }
 
     /******************************** Type errors handling ********************************/
+
+    public String getUsername() throws TypeError {
+        if (type != Type.SET_USERNAME && type != Type.ACK_USERNAME) {
+            throw new TypeError(Type.SET_USERNAME, type);
+        }
+        return (String) obj;
+    }
 
     public List<String> getRoomsNames() throws TypeError {
         if (type != Type.ROOMS_NAMES) {
@@ -97,23 +102,15 @@ public class Packet implements Serializable {
     }
 
     public String getRoomName() throws TypeError{
-        if(type != Type.CREATE_ROOM && type != Type.REQUEST_CURRENT_DRAWINGS) {
+        if(type != Type.CREATE_ROOM && type != Type.REQUEST_JOIN_ROOM) {
             throw new TypeError(Type.CREATE_ROOM, type);
         }
         return (String)obj;
     }
 
-    public String getUsername() throws TypeError {
-        if(type != Type.ADD_ONLINE_USER && type != Type.SET_USERNAME && type != Type.ADD_USER_TO_GUI && type != Type.REQUEST_ADD_USER_TO_GUI
-        && type != Type.REQUEST_REMOVE_USER_FROM_GUI) {
-            throw new TypeError(Type.ADD_USER_TO_GUI, type);
-        }
-        return (String) obj;
-    }
-
     public List<String> getRoomUsers() throws TypeError {
-        if(type != Type.REMOVE_USER_FROM_GUI) {
-            throw new TypeError(Type.REMOVE_USER_FROM_GUI, type);
+        if(type != Type.UPDATE_USERS_LIST) {
+            throw new TypeError(Type.UPDATE_USERS_LIST, type);
         }
         return (List<String>) obj;
     }
@@ -142,6 +139,13 @@ public class Packet implements Serializable {
     public boolean getAckCreateRoom() throws TypeError {
         if(type != Type.ACK_CREATE_ROOM) {
             throw new TypeError(Type.ACK_CREATE_ROOM, type);
+        }
+        return (boolean)obj;
+    }
+
+    public boolean getAckJoinRoom() throws TypeError {
+        if(type != Type.ACK_JOIN_ROOM) {
+            throw new TypeError(Type.ACK_JOIN_ROOM, type);
         }
         return (boolean)obj;
     }

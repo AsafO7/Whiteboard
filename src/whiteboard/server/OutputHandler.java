@@ -23,7 +23,8 @@ public class OutputHandler implements Runnable {
             out = new ObjectOutputStream(socket.getOutputStream());
 
             while (true) {
-                out.writeObject(outQueue.take());
+                Packet packet = outQueue.take();
+                out.writeObject(packet);
             }
         }
         catch (Exception e) { e.printStackTrace(); }

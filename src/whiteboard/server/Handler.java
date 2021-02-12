@@ -19,7 +19,7 @@ public class Handler implements Runnable {
     private Thread OutputHandlerThread;
     private OutputHandler outputHandler;
     private Room currRoom;
-    private String username = "";
+    private String username = null;
 
     public Handler(Socket socket, List<Room> rooms) {
         this.socket = socket;
@@ -37,12 +37,21 @@ public class Handler implements Runnable {
             OutputHandlerThread.start();
 
             while (true) {
-                Packet packet = (Packet) in.readObject();
+                Packet packet = null;
+                try {
+                    packet = (Packet) in.readObject();
+                }
+                catch (IOException e) {
+                    if (currRoom != null) {
+                        handleRequestExitRoom();
+                    }
+                    break;
+                }
                 Packet.Type type = packet.getType();
                 switch (type) {
-                    case ADD_ONLINE_USER:
+                    case SET_USERNAME:
                         String user = packet.getUsername();
-                        this.handleAddOnlineUser(user);
+                        this.handleSetUsername(user);
                         break;
                     case GET_ROOMS:
                         this.handleGetRooms();
@@ -50,26 +59,29 @@ public class Handler implements Runnable {
                     case CREATE_ROOM:
                         this.handleCreateRoom(packet.getRoomName());
                         break;
-                    case REQUEST_ADD_USER_TO_GUI:
-                        this.handleRequestAddUserToGUI(packet.getUsername());
+                    case REQUEST_JOIN_ROOM:
+                        String roomName = packet.getRoomName();
+                        this.handleAddUserToRoom(roomName);
                         break;
                     case SEND_MSG:
                         this.handleSendMessage(packet.getMessageToSend());
                         break;
-                    case REQUEST_REMOVE_USER_FROM_GUI:
-                        String username = packet.getUsername();
-                        this.handleRequestRemoveUser(username);
-                        break;
-                    case REQUEST_REMOVE_USER_FROM_ROOM:
-                        this.handleRequestRemoveUserFromRoom();
+//                    case REQUEST_REMOVE_USER_FROM_GUI:
+//                        String username = packet.getUsername();
+//                        this.updateUsersListGUI();
+//                        break;
+                    case REQUEST_EXIT_ROOM:
+                        this.handleRequestExitRoom();
                         break;
                     case SEND_NEW_DRAWING:
                         CompleteDraw drawing = packet.getDrawing();
                         this.handleAddNewDrawing(drawing);
                         break;
                     case REQUEST_CURRENT_DRAWINGS:
-                        String roomName = packet.getRoomName();
-                        this.handleRequestCurrDrawings(roomName);
+                        this.handleRequestCurrDrawings();
+                        break;
+                    case REQUEST_USERS_LIST_GUI:
+                        this.updateUsersListGUI(true);
                         break;
                     default:
                         throw new Exception("Error: server received " + packet.getType() + " unexpected packet type");
@@ -96,36 +108,45 @@ public class Handler implements Runnable {
         }
     }
 
-    private void handleRequestCurrDrawings(String roomName) {
-        for (Room room: rooms) {
-            if(room.getName().equals(roomName)) {
-                try {
-                    outQueue.put(Packet.receiveCurrentDrawings(new ArrayList<>(room.getDrawings())));
-                } catch (InterruptedException exception) {
-                    exception.printStackTrace();
+    private void handleRequestExitRoom() {
+        if (currRoom != null) {
+            Room room = currRoom;
+            removeUserFromRoom();
+            synchronized (room.getUsers()) {
+                //currRoom.getUsers().remove(this);
+                List<String> users = new ArrayList<>();
+                for (Handler handler : room.getUsers()) {
+                    users.add(handler.username);
                 }
-                break;
+                for (Handler handler : room.getUsers()) {
+                    if (handler != this) {
+                        try {
+                            handler.outQueue.put(Packet.updateUsersListGUI(users));
+                        } catch (InterruptedException exception) {
+                        }
+                    }
+                }
             }
         }
-
-//        try {
-//            outQueue.put(Packet.receiveCurrentDrawings(currRoom.getDrawings()));
-//        } catch (InterruptedException exception) {
-//            exception.printStackTrace();
-//        }
+        else {
+            //TODO: do some error handling if we call this function when we are not in a room
+        }
     }
 
-    private void handleRequestRemoveUserFromRoom() {
-        //this.currRoom.getUsers().remove(this);
-        this.currRoom = null;
+    private void handleRequestCurrDrawings() {
         try {
-            outQueue.put(Packet.removeUserFromRoom());
+            outQueue.put(Packet.createAllDrawings(new ArrayList<>(currRoom.getDrawings())));
         } catch (InterruptedException exception) {
             exception.printStackTrace();
         }
     }
 
-    private void handleAddOnlineUser(String user) {
+    private void removeUserFromRoom() {
+        this.currRoom.getUsers().remove(this);
+        this.currRoom = null;
+    }
+
+    private void handleSetUsername(String user) {
         //onlineUsers.add(new User(this, user));
         this.username = user;
 //        synchronized (rooms) {
@@ -140,38 +161,26 @@ public class Handler implements Runnable {
 //            }
 //        }
         try {
-            outQueue.put(Packet.setUsername(user));
+            outQueue.put(Packet.ackUsername(user));
         } catch (InterruptedException exception) {
             exception.printStackTrace();
         }
 
     }
 
-    private void handleRequestAddUserToGUI(String roomName) {
+    private void handleAddUserToRoom(String roomName) {
         synchronized (rooms) {
             for (Room room : rooms) {
                 if (room.getName().equals(roomName)) {
                     room.addUser(this);
                     this.currRoom = room;
-                    /* add yourself to the GUI. */
-                    try {
-                        outQueue.put(Packet.addUserToGUI(username));
-                    } catch (InterruptedException exception) {
-                        exception.printStackTrace();
-                    }
-                    synchronized (room.getUsers()) {
-                        for (Handler handler : room.getUsers()) {
-                            System.out.println("How many people in the room");
-                            if (currRoom.getUsers().size() > 1 && handler != this) {
-                                try {
-                                    /* add everyone for youself */
-                                    outQueue.put(Packet.addUserToGUI(handler.username));
-                                    /* add yourself for everyone else */
-                                    handler.outQueue.put(Packet.addUserToGUI(username));
-                                } catch (InterruptedException exception) {
-                                    exception.printStackTrace();
-                                }
-                            } } } break; } } }
+                    break; } } }
+        updateUsersListGUI(false);
+        try {
+            outQueue.put(Packet.ackJoinRoom(true));
+        } catch (InterruptedException exception) {
+            exception.printStackTrace();
+        }
     }
 
 //    private void addUser(String roomName) {
@@ -186,18 +195,22 @@ public class Handler implements Runnable {
 //                            catch (InterruptedException exception) { exception.printStackTrace(); } } } } } }
 //    }
 
-    private void handleRequestRemoveUser(String user) {
-        synchronized (currRoom.getUsers()) {
-            currRoom.getUsers().remove(this);
-            List<String> users = new ArrayList<>();
-            for (Handler handler: currRoom.getUsers()) {
-                users.add(handler.username);
-            }
-            for (Handler handler: currRoom.getUsers()) {
-                try {
-                    handler.outQueue.put(Packet.removeUserFromGUI(users));
-                } catch (InterruptedException exception) {
-                    exception.printStackTrace();
+    private void updateUsersListGUI(boolean updateSelf) {
+        if (currRoom != null) {
+            synchronized (currRoom.getUsers()) {
+                //currRoom.getUsers().remove(this);
+                List<String> users = new ArrayList<>();
+                for (Handler handler : currRoom.getUsers()) {
+                    users.add(handler.username);
+                }
+                for (Handler handler : currRoom.getUsers()) {
+                    if (updateSelf || handler != this) {
+                        try {
+                            handler.outQueue.put(Packet.updateUsersListGUI(users));
+                        } catch (InterruptedException exception) {
+                            exception.printStackTrace();
+                        }
+                    }
                 }
             }
         }
@@ -217,12 +230,12 @@ public class Handler implements Runnable {
                 rooms.add(currRoom);
             }
         }
+        handleAddUserToRoom(currRoom.getName());
         try {
             outQueue.put(Packet.ackCreateRoom(answer));
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        handleGetRooms();
     }
 
     private void handleGetRooms() {
@@ -280,8 +293,6 @@ public class Handler implements Runnable {
         }
     }
 
-    //TODO: make a packet to send all drawings and receive all drawings
-    //TODO: add the new drawing that was sent by Whiteboard before sending the drawing stack.
     private void sendAllDrawings() {
         try {
             this.outQueue.put(Packet.createAllDrawings(new ArrayList<>(currRoom.getDrawings())));

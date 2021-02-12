@@ -14,6 +14,18 @@ public class TextBox extends MyDraw {
         this.text = t;
     }
 
+    public double getX() {
+        return x;
+    }
+
+    public double getY() {
+        return y;
+    }
+
+    public String getText() {
+        return text;
+    }
+
     public void Draw(GraphicsContext g) {
         g.setLineWidth(getThickness());
         g.setFont(Font.font(20));

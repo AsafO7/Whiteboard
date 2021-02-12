@@ -1,5 +1,6 @@
 package whiteboard.server;
 
+import whiteboard.client.CompleteDraw;
 import whiteboard.client.MyDraw;
 import whiteboard.client.WhiteboardRoom;
 
@@ -11,7 +12,7 @@ import java.util.List;
 public class Room implements Serializable {
     private String name;
     private List<Handler> users = Collections.synchronizedList(new ArrayList<>());
-    private List<MyDraw> drawings = Collections.synchronizedList(new ArrayList<>());
+    private List<CompleteDraw> drawings = Collections.synchronizedList(new ArrayList<>());
 
     public Room(String name) {
         this.name = name;
@@ -27,7 +28,7 @@ public class Room implements Serializable {
 
     public List<Handler> getUsers() { return users; }
 
-    public List<MyDraw> getDrawings() { return drawings; }
+    public List<CompleteDraw> getDrawings() { return drawings; }
 
 
 }

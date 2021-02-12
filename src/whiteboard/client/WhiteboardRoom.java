@@ -50,7 +50,9 @@ public class WhiteboardRoom {
     private boolean toFill = false, isRoundRectChosen = false;
     private Color color = Color.BLACK; // Default color is black.
 
-    private VBox chatBox = new VBox(), leftMenu;
+    private VBox chatBox = new VBox(), leftMenu = new VBox();
+
+    private InputHandler input = null;
 
     // If the user isn't the host don't clear the board.
     private boolean isHost = false;
@@ -58,9 +60,10 @@ public class WhiteboardRoom {
     private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900;
 
     private String host;
-    public WhiteboardRoom(String host) {
+    public WhiteboardRoom(String host, InputHandler input) {
         this.host = host;
         isHost = true;
+        this.input = input;
     }
 
     public VBox getOnlineUsersPanel() {
@@ -129,7 +132,7 @@ public class WhiteboardRoom {
             /********************************** Building the left menu - online users list ********************************/
 
             // Online users in the room.
-            leftMenu = new VBox();
+            //leftMenu = new VBox();
             leftMenu.setMaxWidth(LEFT_MENU_WIDTH);
             leftMenu.setMinWidth(LEFT_MENU_WIDTH);
             leftMenu.setStyle(CssLayouts.cssLeftMenu + ";\n-fx-padding: 3 0 0 10;");
@@ -137,6 +140,11 @@ public class WhiteboardRoom {
 //                leftMenu.getChildren().add(users.get(i));
 //            }
             //leftMenu.getChildren().add(user);
+            try {
+                outQueue.put(Packet.requestUsersListGUI());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
             /********************************** Building the right menu - chat box ********************************/
 
@@ -239,14 +247,15 @@ public class WhiteboardRoom {
                         //TODO: make the next user in users the host.
                         chatBox.getChildren().clear();
                         try {
-                            outQueue.put(Packet.requestRemoveUserFromGUI(user.getText()));
-                            outQueue.put(Packet.requestRemoveUserFromRoom());
+                            outQueue.put(Packet.requestExitRoom());
                             outQueue.put(Packet.requestRoomsNames());
                         } catch (InterruptedException interruptedException) {
                             interruptedException.printStackTrace();
                         }
                         stage.setScene(lobby);
                         stage.setTitle("Lobby");
+                        myDraws.clear();
+                        input.myRoom = null;
                     }
 
                     /* exit button functionality. */
@@ -437,6 +446,14 @@ public class WhiteboardRoom {
             int height = gd.getDisplayMode().getHeight() - TOOLBAR_HEIGHT;
 
             //if(!myDraws.isEmpty()) { repaint(); }
+
+            try {
+                outQueue.put(Packet.requestCurrentDrawings());
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+
         return new Scene(whiteboardLayout, width, height);
     }
 
@@ -467,6 +484,4 @@ public class WhiteboardRoom {
         return chatBox;
     }
 
-    //TODO: the user needs to receive all the drawings in the room prior to his arrival.
-    //TODO: the user needs to receive drawings from other users that are currently being drawn.
 }

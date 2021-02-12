@@ -11,8 +11,8 @@ import java.util.Collections;
 import java.util.List;
 
 public class Server {
-    private static Handler handler;
-    private static Thread handlerThread;
+    public static List<Handler> handlers = Collections.synchronizedList(new ArrayList<>());
+    public static List<Thread> handlerThreads = Collections.synchronizedList(new ArrayList<>());
 
     private static List<Room> rooms = Collections.synchronizedList(new ArrayList<>());
 
@@ -31,9 +31,11 @@ public class Server {
                 Socket socket = srv.accept();
                 System.out.println("Session with " + socket.toString() + "Started");
                 try {
-                    handler = new Handler(socket, rooms);
-                    handlerThread = new Thread(handler);
+                    Handler handler = new Handler(socket, rooms);
+                    Thread handlerThread = new Thread(handler);
                     handlerThread.start();
+                    handlers.add(handler);
+                    handlerThreads.add(handlerThread);
                 }
                 catch (Exception e) {
                     e.printStackTrace();
