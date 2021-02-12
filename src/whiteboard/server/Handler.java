@@ -235,7 +235,9 @@ public class Handler implements Runnable {
                 rooms.add(currRoom);
             }
         }
-        handleAddUserToRoom(currRoom.getName());
+        if (answer) {
+            handleAddUserToRoom(currRoom.getName());
+        }
         try {
             outQueue.put(Packet.ackCreateRoom(answer));
         } catch (InterruptedException e) {
