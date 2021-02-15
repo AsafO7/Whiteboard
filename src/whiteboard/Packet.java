@@ -14,10 +14,10 @@ public class Packet implements Serializable {
     public enum Type { // List of events
         SET_USERNAME,
         ACK_USERNAME,
-        NACK_USERNAME,
         GET_ROOMS,
         ROOMS_NAMES,
         CREATE_ROOM,
+        CREATE_ROOM_WITH_DRAWINGS,
         ACK_CREATE_ROOM,
         SEND_MSG,
         RECEIVE_MSG,
@@ -30,6 +30,12 @@ public class Packet implements Serializable {
         RECEIVE_CURRENT_DRAWINGS,
         REQUEST_JOIN_ROOM,
         ACK_JOIN_ROOM,
+        REQUEST_UNDO,
+        REQUEST_REDO,
+        REQUEST_SET_HOST,
+        SET_HOST,
+        REQUEST_CLEAR_BOARD,
+        CLEAR_BOARD,
     }
 
     public Packet(Object obj, Type type) {
@@ -37,7 +43,23 @@ public class Packet implements Serializable {
         this.type = type;
     }
 
+    /************************************* Data types *************************************/
+
+    public static class RoomNameAndDrawings {
+        public String roomName;
+        public List<CompleteDraw> drawings;
+
+        public RoomNameAndDrawings(String roomName, List<CompleteDraw> drawings) {
+            this.roomName = roomName;
+            this.drawings = drawings;
+        }
+    }
+
     /************************************* Requests *************************************/
+
+    public static Packet createRequestUndo() { return new Packet(null, Type.REQUEST_UNDO); }
+
+    public static Packet createRequestRedo() { return new Packet(null, Type.REQUEST_REDO); }
 
     public static Packet setUsername(String userName) { return new Packet(userName, Type.SET_USERNAME); }
 
@@ -56,6 +78,11 @@ public class Packet implements Serializable {
     // Creates a room request.
     public static Packet createRoom(String name) {
         return new Packet(name, Type.CREATE_ROOM);
+    }
+
+    // Creates a room request with loaded drawings.
+    public static Packet createRoomWithDrawings(String name, List<CompleteDraw> drawings) {
+        return new Packet(new RoomNameAndDrawings(name, drawings), Type.CREATE_ROOM_WITH_DRAWINGS);
     }
 
     // Confirms the room is created request.
@@ -82,6 +109,12 @@ public class Packet implements Serializable {
     public static Packet requestCurrentDrawings() { return new Packet(null, Type.REQUEST_CURRENT_DRAWINGS); }
 
     public static Packet requestUsersListGUI() { return new Packet(null, Type.REQUEST_USERS_LIST_GUI); }
+
+    public static Packet requestSetHost() { return new Packet(null, Type.REQUEST_SET_HOST); }
+
+    public static Packet setHost() { return new Packet(null, Type.SET_HOST); }
+
+    public static Packet requestClearBoard() { return new Packet(null, Type.REQUEST_CLEAR_BOARD); }
 
     //public static Packet receiveCurrentDrawings(List<CompleteDraw> drawings) { return new Packet(drawings, Type.RECEIVE_CURRENT_DRAWINGS); }
 
@@ -127,6 +160,13 @@ public class Packet implements Serializable {
             throw new TypeError(Type.NEW_DRAWING, type);
         }
         return (List<CompleteDraw>) obj;
+    }
+
+    public RoomNameAndDrawings getRoomNameAndDrawings() throws TypeError {
+        if(type != Type.CREATE_ROOM_WITH_DRAWINGS) {
+            throw new TypeError(Type.CREATE_ROOM_WITH_DRAWINGS, type);
+        }
+        return (RoomNameAndDrawings) obj;
     }
 
 //    public String getUserToRemove() throws TypeError {

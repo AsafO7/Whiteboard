@@ -3,6 +3,7 @@
     <CLASSES>
       <root url="file://$USER_HOME$/Desktop/Javafx sdk 12/javafx-sdk-11.0.2/lib" />
       <root url="jar://$USER_HOME$/Desktop/postgresql-42.2.18.jar!/" />
+      <root url="jar://$PROJECT_DIR$/sqlite-jdbc-3.32.3.2.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES>

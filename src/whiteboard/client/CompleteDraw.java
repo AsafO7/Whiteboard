@@ -15,7 +15,7 @@ public class CompleteDraw implements Serializable {
     //private GraphicsContext gc;
 
     public CompleteDraw(String color, double thickness, double x1, double y1, double x2, double y2, boolean fill, int arcW, int arcH,
-                        ArrayList<Double> xPoints, ArrayList<Double> yPoints, /*GraphicsContext gc,*/ String shape) {
+                        ArrayList<Double> xPoints, ArrayList<Double> yPoints, /*GraphicsContext gc,*/ String shape, String text) {
         this.color = color;
         this.thickness = thickness;
         this.x1 = x1;
@@ -29,6 +29,7 @@ public class CompleteDraw implements Serializable {
         this.yPoints = yPoints;
         //this.gc = gc;
         this.shape = shape;
+        this.text = text;
     }
 
     public void setText(String text) {
