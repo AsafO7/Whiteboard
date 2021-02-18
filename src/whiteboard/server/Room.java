@@ -21,10 +21,6 @@ public class Room implements Serializable {
         return name;
     }
 
-    //public void addUser(Handler name) { users.add(name); }
-
-    //public void removeUser(Handler name) { users.remove(name); }
-
     public List<Handler> getUsers() { return users; }
 
     public List<CompleteDraw> getDrawings() { return drawings; }

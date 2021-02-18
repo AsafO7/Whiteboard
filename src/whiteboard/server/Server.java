@@ -31,7 +31,7 @@ public class Server {
                 Socket socket = srv.accept();
                 System.out.println("Session with " + socket.toString() + "Started");
                 try {
-                    Handler handler = new Handler(socket, rooms);
+                    Handler handler = new Handler(socket, rooms, handlers);
                     Thread handlerThread = new Thread(handler);
                     handlerThread.start();
                     handlers.add(handler);

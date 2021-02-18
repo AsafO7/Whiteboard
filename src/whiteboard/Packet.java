@@ -13,7 +13,7 @@ public class Packet implements Serializable {
 
     public enum Type { // List of events
         SET_USERNAME,
-        ACK_USERNAME,
+        ACK_SET_USERNAME,
         GET_ROOMS,
         ROOMS_NAMES,
         CREATE_ROOM,
@@ -32,10 +32,10 @@ public class Packet implements Serializable {
         ACK_JOIN_ROOM,
         REQUEST_UNDO,
         REQUEST_REDO,
-        REQUEST_SET_HOST,
-        SET_HOST,
         REQUEST_CLEAR_BOARD,
         CLEAR_BOARD,
+        REQUEST_USERNAME,
+        ACK_USERNAME,
     }
 
     public Packet(Object obj, Type type) {
@@ -45,7 +45,7 @@ public class Packet implements Serializable {
 
     /************************************* Data types *************************************/
 
-    public static class RoomNameAndDrawings {
+    public static class RoomNameAndDrawings implements Serializable{
         public String roomName;
         public List<CompleteDraw> drawings;
 
@@ -63,7 +63,11 @@ public class Packet implements Serializable {
 
     public static Packet setUsername(String userName) { return new Packet(userName, Type.SET_USERNAME); }
 
-    public static Packet ackUsername(String userName) { return new Packet(userName, Type.ACK_USERNAME); }
+    public static Packet ackUsername(String userName) { return new Packet(userName, Type.ACK_SET_USERNAME); }
+
+    public static Packet requestUsername(String userName) { return new Packet(userName, Type.REQUEST_USERNAME); }
+
+    public static Packet ackUsername(boolean answer) { return new Packet(answer, Type.ACK_USERNAME); }
 
     // Creates a list of room names request.
     public static Packet createRoomsNames(List<String> roomsNames) {
@@ -110,10 +114,6 @@ public class Packet implements Serializable {
 
     public static Packet requestUsersListGUI() { return new Packet(null, Type.REQUEST_USERS_LIST_GUI); }
 
-    public static Packet requestSetHost() { return new Packet(null, Type.REQUEST_SET_HOST); }
-
-    public static Packet setHost() { return new Packet(null, Type.SET_HOST); }
-
     public static Packet requestClearBoard() { return new Packet(null, Type.REQUEST_CLEAR_BOARD); }
 
     //public static Packet receiveCurrentDrawings(List<CompleteDraw> drawings) { return new Packet(drawings, Type.RECEIVE_CURRENT_DRAWINGS); }
@@ -121,10 +121,17 @@ public class Packet implements Serializable {
     /******************************** Type errors handling ********************************/
 
     public String getUsername() throws TypeError {
-        if (type != Type.SET_USERNAME && type != Type.ACK_USERNAME) {
+        if (type != Type.SET_USERNAME && type != Type.ACK_SET_USERNAME && type != Type.REQUEST_USERNAME) {
             throw new TypeError(Type.SET_USERNAME, type);
         }
         return (String) obj;
+    }
+
+    public boolean getAckUsername() throws TypeError {
+        if(type != Type.ACK_USERNAME) {
+            throw new TypeError(Type.ACK_USERNAME, type);
+        }
+        return (boolean) obj;
     }
 
     public List<String> getRoomsNames() throws TypeError {

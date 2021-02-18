@@ -22,12 +22,10 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import whiteboard.Packet;
 
-import javax.sql.rowset.JdbcRowSet;
-import javax.sql.rowset.RowSetProvider;
 import java.awt.*;
-import java.sql.SQLException;
+import java.io.*;
+import java.sql.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Stack;
 import java.util.concurrent.BlockingQueue;
@@ -220,151 +218,290 @@ public class WhiteboardRoom {
                     saveDrawing.setOnAction(e -> {
                         List<MyDraw> drawings = new ArrayList<>(this.myDraws);
 
-                        try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
-                            // specify JdbcRowSet properties
-                            rowSet.setUrl(Board.DATABASE_URL);
-                            if(wasCreatedOnce) {
-                                rowSet.setCommand("DROP TABLE IF EXISTS save");
-                                rowSet.execute();
-                            }
-                            else {
-                                wasCreatedOnce = true;
-                            }
 
-                            rowSet.setCommand("CREATE TABLE save(" +
-                                    "SHAPE TEXT,"
-                                    + "COLOR TEXT,"
-                                    + "THICKNESS DOUBLE PRECISION,"
-                                    + "X1 DOUBLE PRECISION,"
-                                    + "Y1 DOUBLE PRECISION,"
-                                    + "X2 DOUBLE PRECISION,"
-                                    + "Y2 DOUBLE PRECISION,"
-                                    + "FILL BIT,"
-                                    + "ARCW INT,"
-                                    + "ARCH INT,"
-                                    + "XPOINTS TEXT,"
-                                    + "YPOINTS TEXT,"
-                                    + "TEXTBOX TEXT)");
-                            rowSet.execute();
-
-
-                            for (int i = 0; i < drawings.size(); i++) {
-                                String colorInHexa = String.format( "#%02X%02X%02X",
-                                        (int)( drawings.get(i).getColor().getRed() * 255 ),
-                                        (int)( drawings.get(i).getColor().getGreen() * 255 ),
-                                        (int)( drawings.get(i).getColor().getBlue() * 255 ) );
-                                if(drawings.get(i) instanceof MyBrush) {
-                                    rowSet.moveToInsertRow();
-                                    rowSet.setString("SHAPE", "MyBrush");
-                                    rowSet.setString("COLOR", colorInHexa);
-                                    rowSet.setDouble("THICKNESS", drawings.get(i).getThickness());
-                                    rowSet.setDouble("X1", -1);
-                                    rowSet.setDouble("Y1", -1);
-                                    rowSet.setDouble("X2", -1);
-                                    rowSet.setDouble("Y2", -1);
-                                    rowSet.setBoolean("FILL", ((MyBrush) drawings.get(i)).isFill());
-                                    rowSet.setInt("ARCW", -1);
-                                    rowSet.setInt("ARCH", -1);
-                                    String xArr = Arrays.toString(((MyBrush) drawings.get(i)).getXPoints().toArray());
-                                    xArr = xArr.substring(1, xArr.length() - 1);
-                                    String yArr = Arrays.toString(((MyBrush) drawings.get(i)).getYPoints().toArray());
-                                    yArr = yArr.substring(1, yArr.length() - 1);
-                                    rowSet.setString("XPOINTS", xArr);
-                                    rowSet.setString("YPOINTS", yArr);
-                                    rowSet.setString("TEXTBOX", "");
-                                    rowSet.insertRow();
-                                }
-                                else if(drawings.get(i) instanceof MyRect) {
-                                    rowSet.moveToInsertRow();
-                                    rowSet.setString("SHAPE", "MyRect");
-                                    rowSet.setString("COLOR", colorInHexa);
-                                    rowSet.setDouble("THICKNESS", drawings.get(i).getThickness());
-                                    rowSet.setDouble("X1", ((MyRect) drawings.get(i)).getX1());
-                                    rowSet.setDouble("Y1", ((MyRect) drawings.get(i)).getY1());
-                                    rowSet.setDouble("X2", ((MyRect) drawings.get(i)).getWidth());
-                                    rowSet.setDouble("Y2", ((MyRect) drawings.get(i)).getHeight());
-                                    rowSet.setBoolean("FILL", ((MyRect) drawings.get(i)).toFill());
-                                    rowSet.setInt("ARCW", -1);
-                                    rowSet.setInt("ARCH", -1);
-                                    rowSet.setString("XPOINTS", "");
-                                    rowSet.setString("YPOINTS", "");
-                                    rowSet.setString("TEXTBOX", "");
-                                }
-                                else if(drawings.get(i) instanceof MyRoundRect) {
-                                    rowSet.moveToInsertRow();
-                                    rowSet.setString("SHAPE", "MyRoundRect");
-                                    rowSet.setString("COLOR", colorInHexa);
-                                    rowSet.setDouble("THICKNESS", drawings.get(i).getThickness());
-                                    rowSet.setDouble("X1", ((MyRoundRect) drawings.get(i)).getX1());
-                                    rowSet.setDouble("Y1", ((MyRoundRect) drawings.get(i)).getY1());
-                                    rowSet.setDouble("X2", ((MyRoundRect) drawings.get(i)).getWidth());
-                                    rowSet.setDouble("Y2", ((MyRoundRect) drawings.get(i)).getHeight());
-                                    rowSet.setBoolean("FILL", ((MyRoundRect) drawings.get(i)).toFill());
-                                    rowSet.setInt("ARCW", ((MyRoundRect) drawings.get(i)).getArcWidth());
-                                    rowSet.setInt("ARCH", ((MyRoundRect) drawings.get(i)).getArcHeight());
-                                    rowSet.setString("XPOINTS", "");
-                                    rowSet.setString("YPOINTS", "");
-                                    rowSet.setString("TEXTBOX", "");
-
-                                }
-                                else if(drawings.get(i) instanceof MyOval) {
-                                    rowSet.moveToInsertRow();
-                                    rowSet.setString("SHAPE", "MyOval");
-                                    rowSet.setString("COLOR", colorInHexa);
-                                    rowSet.setDouble("THICKNESS", drawings.get(i).getThickness());
-                                    rowSet.setDouble("X1", ((MyOval) drawings.get(i)).getX1());
-                                    rowSet.setDouble("Y1", ((MyOval) drawings.get(i)).getY1());
-                                    rowSet.setDouble("X2", ((MyOval) drawings.get(i)).getWidth());
-                                    rowSet.setDouble("Y2", ((MyOval) drawings.get(i)).getHeight());
-                                    rowSet.setBoolean("FILL", ((MyOval) drawings.get(i)).toFill());
-                                    rowSet.setInt("ARCW", -1);
-                                    rowSet.setInt("ARCH", -1);
-                                    rowSet.setString("XPOINTS", "");
-                                    rowSet.setString("YPOINTS", "");
-                                    rowSet.setString("TEXTBOX", "");
-
-                                }
-                                else if(drawings.get(i) instanceof MyLine) {
-                                    rowSet.moveToInsertRow();
-                                    rowSet.setString("SHAPE", "MyLine");
-                                    rowSet.setString("COLOR", colorInHexa);
-                                    rowSet.setDouble("THICKNESS", drawings.get(i).getThickness());
-                                    rowSet.setDouble("X1", ((MyLine) drawings.get(i)).getX1());
-                                    rowSet.setDouble("Y1", ((MyLine) drawings.get(i)).getY1());
-                                    rowSet.setDouble("X2", ((MyLine) drawings.get(i)).getX2());
-                                    rowSet.setDouble("Y2", ((MyLine) drawings.get(i)).getY2());
-                                    rowSet.setBoolean("FILL", false);
-                                    rowSet.setInt("ARCW", -1);
-                                    rowSet.setInt("ARCH", -1);
-                                    rowSet.setString("XPOINTS", "");
-                                    rowSet.setString("YPOINTS", "");
-                                    rowSet.setString("TEXTBOX", "");
-
-                                }
-                                else if(drawings.get(i) instanceof TextBox) {
-                                    rowSet.moveToInsertRow();
-                                    rowSet.setString("SHAPE", "TextBox");
-                                    rowSet.setString("COLOR", colorInHexa);
-                                    rowSet.setDouble("THICKNESS", drawings.get(i).getThickness());
-                                    rowSet.setDouble("X1", ((TextBox) drawings.get(i)).getX());
-                                    rowSet.setDouble("Y1", ((TextBox) drawings.get(i)).getY());
-                                    rowSet.setDouble("X2", -1);
-                                    rowSet.setDouble("Y2", -1);
-                                    rowSet.setBoolean("FILL", false);
-                                    rowSet.setInt("ARCW", -1);
-                                    rowSet.setInt("ARCH", -1);
-                                    rowSet.setString("XPOINTS", "");
-                                    rowSet.setString("YPOINTS", "");
-                                    rowSet.setString("TEXTBOX", ((TextBox) drawings.get(i)).getText());
-
-                                }
-                                rowSet.insertRow();
-                            }
-                        }
-                        catch (SQLException sqlException)
+                        try(Connection connection = DriverManager.getConnection(Board.DATABASE_URL);)
                         {
-                            sqlException.printStackTrace();
-                            System.exit(1);
+                            // create a database connection
+                            Statement statement = connection.createStatement();
+                            statement.setQueryTimeout(2);  // set timeout to 30 sec.
+
+                            statement.executeUpdate("DROP TABLE IF EXISTS save");
+//                            statement.executeUpdate("CREATE TABLE save(" +
+//                                    "SHAPE TEXT,"
+//                                    + "COLOR TEXT,"
+//                                    + "THICKNESS REAL,"
+//                                    + "X1 REAL,"
+//                                    + "Y1 REAL,"
+//                                    + "X2 REAL,"
+//                                    + "Y2 REAL,"
+//                                    + "FILL BIT,"
+//                                    + "ARCW INT,"
+//                                    + "ARCH INT,"
+//                                    + "XPOINTS BLOB,"
+//                                    + "YPOINTS BLOB,"
+//                                    + "TEXTBOX TEXT)");
+                            statement.executeUpdate("CREATE TABLE save(DRAWING BLOB)");
+//                            statement.executeUpdate("insert into person values(1, 'leo')");
+//                            statement.executeUpdate("insert into person values(2, 'yui')");
+//                            ResultSet rs = statement.executeQuery("select * from person");
+//                            while(rs.next())
+//                            {
+//                                // read the result set
+//                                System.out.println("name = " + rs.getString("name"));
+//                                System.out.println("id = " + rs.getInt("id"));
+//                            }
+                        }
+                        catch(SQLException sqlException)
+                        {
+                            // if the error message is "out of memory",
+                            // it probably means no database file is found
+                            System.err.println(sqlException.getMessage());
+                        }
+                        finally
+                        {
+//                            try
+//                            {
+//                                if(connection != null)
+//                                    connection.close();
+//                            }
+//                            catch(SQLException sqlException)
+//                            {
+//                                // connection close failed.
+//                                System.err.println(sqlException.getMessage());
+//                            }
+                        }
+//                            // specify JdbcRowSet properties
+
+//                            rowSet.setCommand("DROP TABLE IF EXISTS save");
+//                            rowSet.execute();
+//
+//
+//
+//                            rowSet.setCommand("CREATE TABLE save(" +
+//                                    "SHAPE TEXT,"
+//                                    + "COLOR TEXT,"
+//                                    + "THICKNESS DOUBLE PRECISION,"
+//                                    + "X1 DOUBLE PRECISION,"
+//                                    + "Y1 DOUBLE PRECISION,"
+//                                    + "X2 DOUBLE PRECISION,"
+//                                    + "Y2 DOUBLE PRECISION,"
+//                                    + "FILL BIT,"
+//                                    + "ARCW INT,"
+//                                    + "ARCH INT,"
+//                                    + "XPOINTS TEXT,"
+//                                    + "YPOINTS TEXT,"
+//                                    + "TEXTBOX TEXT)");
+//                            rowSet.execute();
+//
+//
+//                            rowSet.setCommand("SELECT * FROM save");
+//                            rowSet.execute();
+//                            for (int i = 0; i < drawings.size(); i++) {
+//                                String colorInHexa = String.format( "#%02X%02X%02X",
+//                                        (int)( drawings.get(i).getColor().getRed() * 255 ),
+//                                        (int)( drawings.get(i).getColor().getGreen() * 255 ),
+//                                        (int)( drawings.get(i).getColor().getBlue() * 255 ) );
+//                                if(drawings.get(i) instanceof MyBrush) {
+//
+//                                    rowSet.insertRow();
+//                                }
+//                                else if(drawings.get(i) instanceof MyRect) {
+//
+//                                }
+//                                else if(drawings.get(i) instanceof MyRoundRect) {
+//
+//
+//                                }
+//                                else if(drawings.get(i) instanceof MyOval) {
+//
+//
+//                                }
+//                                else if(drawings.get(i) instanceof MyLine) {
+//
+//
+//                                }
+//                                else if(drawings.get(i) instanceof TextBox) {
+//
+//
+//                                }
+//                                rowSet.insertRow();
+//                            }
+
+                        //TODO: make a table with one attribute, blob. Then make a list of
+                        try(Connection connection = DriverManager.getConnection(Board.DATABASE_URL);) {
+
+                            List<CompleteDraw> arr = new ArrayList<>();
+                            for(int i = 0; i < drawings.size(); i++) {
+                                arr.add(convertMyDrawToCompleteDraw(drawings.get(i)));
+                            }
+//                            System.out.println(arr.get(0).getThickness());
+//                            byte[] a = serialize(arr);
+//                            Object b = deserialize(a);
+//                            System.out.println(((List<CompleteDraw>)b).get(0).getThickness());
+
+                            //List<MyDraw> arr = new ArrayList<>(this.myDraws);
+//                            CompleteDraw d = convertMyDrawToCompleteDraw(myDraws.peek());
+//                            System.out.println(d.getThickness());
+//                            byte[] a = serialize(d);
+//                            Object b = deserialize(a);
+//                            System.out.println(((CompleteDraw)b).getThickness());
+
+//                            System.out.println(((MyBrush) drawings.get(0)).getXPoints());
+//                            byte[] a = serialize(((MyBrush) drawings.get(0)).getXPoints());
+//                            System.out.println(a);
+//                            Object b = deserialize(a);
+//                            System.out.println(b);
+
+
+                            // create a database connection
+
+                            PreparedStatement statement = connection.prepareStatement("INSERT INTO save(DRAWING) VALUES(?)");
+                            statement.setQueryTimeout(2);  // set timeout to 30 sec.
+                            byte[] byteArr = serialize(arr);
+                            ByteArrayInputStream bis = new ByteArrayInputStream(byteArr);
+                            statement.setBinaryStream(1, bis, (int) byteArr.length);
+                            statement.executeUpdate();
+//                            for (int i = 0; i < drawings.size(); i++) {
+//                                //TODO: remember to add '#' to the start of colorInHexa
+//                                String colorInHexa = String.format("%02X%02X%02X",
+//                                        (int) (drawings.get(i).getColor().getRed() * 255),
+//                                        (int) (drawings.get(i).getColor().getGreen() * 255),
+//                                        (int) (drawings.get(i).getColor().getBlue() * 255));
+//                                float thickness = (float) drawings.get(i).getThickness();
+//                                String isFill = null;
+//                                if (drawings.get(i) instanceof MyBrush) {
+//                                    if(((MyBrush) drawings.get(i)).isFill()) {
+//                                        isFill = "1";
+//                                    }
+//                                    else {
+//                                        isFill = "0";
+//                                    }
+//                                    String xArr = Arrays.toString(((MyBrush) drawings.get(i)).getXPoints().toArray());
+//                                    xArr = xArr.substring(1, xArr.length() - 1);
+//                                    String yArr = Arrays.toString(((MyBrush) drawings.get(i)).getYPoints().toArray());
+//                                    yArr = yArr.substring(1, yArr.length() - 1);
+//                                    //TODO: this crap doesn't see the array values as a single string.
+//                                    statement.executeUpdate("INSERT INTO save " +
+//                                            "(SHAPE, COLOR, THICKNESS, X1, Y1, X2, Y2, FILL, ARCW, ARCH, XPOINTS, YPOINTS, TEXTBOX) "
+//
+//                                            + "VALUES ('MyBrush', " +
+//                                            colorInHexa + ", "
+//                                            + thickness
+//                                            + ", '-1', '-1', '-1', '-1'" + ", "
+//                                            + isFill +
+//                                            ", '-1', '-1', "
+//                                            + serialize(xArr) + ", "
+//                                            + serialize(yArr) +
+//                                            ", '')");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(2, " + colorInHexa + ")");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(3, " + drawings.get(i).getThickness() + ")");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(4, '-1')");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(5, '-1')");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(6, '-1')");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(7, '-1')");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(8, " + ((MyBrush) drawings.get(i)).isFill() + ")");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(9, '-1')");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(10, '-1')");
+////
+////                                    statement.executeUpdate("INSERT INTO save VALUES(11, " + xArr + ")");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(12, " + yArr + ")");
+////                                    statement.executeUpdate("INSERT INTO save VALUES(13, '')");
+//                                }
+//                                else if (drawings.get(i) instanceof MyLine) {
+//                                    statement.executeUpdate("INSERT INTO save " +
+//                                            "(SHAPE, COLOR, THICKNESS, X1, Y1, X2, Y2, FILL, ARCW, ARCH, XPOINTS, YPOINTS, TEXTBOX) "
+//
+//                                            + "VALUES ('MyLine', " +
+//                                            colorInHexa + ", "
+//                                            + thickness + ", " + ((MyLine) drawings.get(i)).getX1() + ", "
+//                                            + ((MyLine) drawings.get(i)).getY1() + ", "
+//                                            + ((MyLine) drawings.get(i)).getX2() + ", "
+//                                            + ((MyLine) drawings.get(i)).getY2() + ", '0', '-1', '-1', '', '', '')");
+//                                }
+//                                else if (drawings.get(i) instanceof MyOval) {
+//                                    if(((MyOval) drawings.get(i)).toFill()) {
+//                                        isFill = "1";
+//                                    }
+//                                    else {
+//                                        isFill = "0";
+//                                    }
+//                                    statement.executeUpdate("INSERT INTO save " +
+//                                            "(SHAPE, COLOR, THICKNESS, X1, Y1, X2, Y2, FILL, ARCW, ARCH, XPOINTS, YPOINTS, TEXTBOX) "
+//
+//                                            + "VALUES ('MyOval', " +
+//                                            colorInHexa + ", "
+//                                            + thickness + ", " + ((MyOval) drawings.get(i)).getX1() + ", "
+//                                            + ((MyOval) drawings.get(i)).getY1() + ", "
+//                                            + ((MyOval) drawings.get(i)).getWidth() + ", "
+//                                            + ((MyOval) drawings.get(i)).getHeight() + ", " + isFill + ", '-1', '-1', '', '', '')");
+//                                }
+//                                else if (drawings.get(i) instanceof MyRect) {
+//                                    if(((MyRect) drawings.get(i)).toFill()) {
+//                                        isFill = "1";
+//                                    }
+//                                    else {
+//                                        isFill = "0";
+//                                    }
+//                                    statement.executeUpdate("INSERT INTO save " +
+//                                            "(SHAPE, COLOR, THICKNESS, X1, Y1, X2, Y2, FILL, ARCW, ARCH, XPOINTS, YPOINTS, TEXTBOX) "
+//
+//                                            + "VALUES ('MyRect', " +
+//                                            colorInHexa + ", "
+//                                            + thickness + ", " + ((MyRect) drawings.get(i)).getX1() + ", "
+//                                            + ((MyRect) drawings.get(i)).getY1() + ", "
+//                                            + ((MyRect) drawings.get(i)).getWidth() + ", "
+//                                            + ((MyRect) drawings.get(i)).getHeight() + ", " + isFill + ", '-1', '-1', '', '', '')");
+//                                }
+//                                else if (drawings.get(i) instanceof MyRoundRect) {
+//                                    if(((MyRoundRect) drawings.get(i)).toFill()) {
+//                                        isFill = "1";
+//                                    }
+//                                    else {
+//                                        isFill = "0";
+//                                    }
+//                                    statement.executeUpdate("INSERT INTO save " +
+//                                            "(SHAPE, COLOR, THICKNESS, X1, Y1, X2, Y2, FILL, ARCW, ARCH, XPOINTS, YPOINTS, TEXTBOX) "
+//
+//                                            + "VALUES ('MyRoundRecr', " +
+//                                            colorInHexa + ", "
+//                                            + thickness + ", " + ((MyRoundRect) drawings.get(i)).getX1() + ", "
+//                                            + ((MyRoundRect) drawings.get(i)).getY1() + ", "
+//                                            + ((MyRoundRect) drawings.get(i)).getWidth() + ", "
+//                                            + ((MyRoundRect) drawings.get(i)).getHeight() + ", " + isFill + ", " +
+//                                            ((MyRoundRect) drawings.get(i)).getArcWidth() + ", " +
+//                                            ((MyRoundRect) drawings.get(i)).getArcHeight() + ", '', '', '')");
+//                                }
+//                                else if (drawings.get(i) instanceof TextBox) {
+//
+//                                    statement.executeUpdate("INSERT INTO save " +
+//                                            "(SHAPE, COLOR, THICKNESS, X1, Y1, X2, Y2, FILL, ARCW, ARCH, XPOINTS, YPOINTS, TEXTBOX) "
+//
+//                                            + "VALUES ('TextBox', " +
+//                                            colorInHexa + ", "
+//                                            + thickness + ", " + ((TextBox) drawings.get(i)).getX() + ", "
+//                                            + ((TextBox) drawings.get(i)).getY() + ", '-1', '-1', '0', '-1', '-1', '', '', " +
+//                                            ((TextBox) drawings.get(i)).getText() + ")");
+//                                }
+//                            }
+                        }
+                        catch(SQLException | IOException sqlException)
+                        {
+                            // if the error message is "out of memory",
+                            // it probably means no database file is found
+                            System.err.println(sqlException.getMessage());
+                        }
+                        finally
+                        {
+//                            try
+//                            {
+//                                if(connection != null)
+//                                    connection.close();
+//                            }
+//                            catch(SQLException sqlException)
+//                            {
+//                                // connection close failed.
+//                                System.err.println(sqlException.getMessage());
+//                            }
                         }
                     });
 
@@ -397,18 +534,13 @@ public class WhiteboardRoom {
                             }
                         }
                     });
-//                        if(isHost) {
-//                            myDraws.clear();
-//                            deletedDraws.clear();
-//                            gc.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-//                        }
+
                     /* backToLobby button functionality. */
                     backToLobby.setOnAction(e -> {
-                        if(isHost) { isHost = false; }
+                        //if(isHost) { isHost = false; }
                         //TODO: make the next user in users the host.
                         chatBox.getChildren().clear();
                         try {
-                            outQueue.put(Packet.requestSetHost());
                             outQueue.put(Packet.requestExitRoom());
                             outQueue.put(Packet.requestRoomsNames());
                         } catch (InterruptedException interruptedException) {
@@ -539,46 +671,47 @@ public class WhiteboardRoom {
             canvas.setOnMouseReleased(e -> {
                 //TODO: send the drawing to the server.
                 //myDraws.peek();
-                CompleteDraw drawing = null;
-                String colorInHexa = String.format( "#%02X%02X%02X",
-                        (int)( myDraws.peek().getColor().getRed() * 255 ),
-                        (int)( myDraws.peek().getColor().getGreen() * 255 ),
-                        (int)( myDraws.peek().getColor().getBlue() * 255 ) );
-                if(myDraws.peek() instanceof MyBrush) {
-                    /* String color, double thickness, double x1, double y1, double x2, double y2, boolean fill, int arcW, int arcH,
-                        ArrayList<Double> xPoints, ArrayList<Double> yPoints) */
-                    drawing = new CompleteDraw(colorInHexa, ((MyBrush) myDraws.peek()).getThickness(), -1, -1, -1, -1,
-                            ((MyBrush) myDraws.peek()).isFill(), -1, -1, ((MyBrush) myDraws.peek()).getXPoints(),
-                            ((MyBrush) myDraws.peek()).getYPoints(), /*gc,*/ "MyBrush", "");
-                }
-                else if(myDraws.peek() instanceof MyLine) {
-                    drawing = new CompleteDraw(colorInHexa, ((MyLine) myDraws.peek()).getThickness(), ((MyLine) myDraws.peek()).getX1(),
-                            ((MyLine) myDraws.peek()).getY1(), ((MyLine) myDraws.peek()).getX2(), ((MyLine) myDraws.peek()).getY2(),
-                            false, -1, -1, null, null, /*gc,*/ "MyLine", "");
-                }
-                else if(myDraws.peek() instanceof MyOval) {
-                    drawing = new CompleteDraw(colorInHexa, ((MyOval) myDraws.peek()).getThickness(), ((MyOval) myDraws.peek()).getX1(),
-                            ((MyOval) myDraws.peek()).getY1(), ((MyOval) myDraws.peek()).getWidth(), ((MyOval) myDraws.peek()).getHeight(),
-                            ((MyOval) myDraws.peek()).toFill(), -1, -1, null, null, /*gc,*/ "MyOval", "");
-                }
-                else if(myDraws.peek() instanceof MyRect) {
-                    drawing = new CompleteDraw(colorInHexa, ((MyRect) myDraws.peek()).getThickness(), ((MyRect) myDraws.peek()).getX1(),
-                            ((MyRect) myDraws.peek()).getY1(), ((MyRect) myDraws.peek()).getWidth(), ((MyRect) myDraws.peek()).getHeight(),
-                            ((MyRect) myDraws.peek()).toFill(), -1, -1, null, null, /*gc,*/ "MyRect", "");
-                }
-                else if(myDraws.peek() instanceof MyRoundRect) {
-                    drawing = new CompleteDraw(colorInHexa, ((MyRoundRect) myDraws.peek()).getThickness(), ((MyRoundRect) myDraws.peek()).getX1(),
-                            ((MyRoundRect) myDraws.peek()).getY1(), ((MyRoundRect) myDraws.peek()).getWidth(),
-                            ((MyRoundRect) myDraws.peek()).getHeight(), ((MyRoundRect) myDraws.peek()).toFill(),
-                            ((MyRoundRect) myDraws.peek()).getArcWidth(), ((MyRoundRect) myDraws.peek()).getArcHeight(),
-                            null, null, /*gc,*/ "MyRoundRect", "");
-                }
-                else if(myDraws.peek() instanceof TextBox) {
-                    drawing = new CompleteDraw(colorInHexa, ((TextBox) myDraws.peek()).getThickness(), ((TextBox) myDraws.peek()).getX(),
-                            ((TextBox) myDraws.peek()).getY(), -1, -1,
-                            false, -1, -1, null, null, /*gc,*/ "TextBox", ((TextBox) myDraws.peek()).getText());
-                    drawing.setText(((TextBox) myDraws.peek()).getText());
-                }
+//                CompleteDraw drawing = null;
+//                String colorInHexa = String.format( "#%02X%02X%02X",
+//                        (int)( myDraws.peek().getColor().getRed() * 255 ),
+//                        (int)( myDraws.peek().getColor().getGreen() * 255 ),
+//                        (int)( myDraws.peek().getColor().getBlue() * 255 ) );
+//                if(myDraws.peek() instanceof MyBrush) {
+//                    /* String color, double thickness, double x1, double y1, double x2, double y2, boolean fill, int arcW, int arcH,
+//                        ArrayList<Double> xPoints, ArrayList<Double> yPoints) */
+//                    drawing = new CompleteDraw(colorInHexa, ((MyBrush) myDraws.peek()).getThickness(), -1, -1, -1, -1,
+//                            ((MyBrush) myDraws.peek()).isFill(), -1, -1, ((MyBrush) myDraws.peek()).getXPoints(),
+//                            ((MyBrush) myDraws.peek()).getYPoints(), /*gc,*/ "MyBrush", "");
+//                }
+//                else if(myDraws.peek() instanceof MyLine) {
+//                    drawing = new CompleteDraw(colorInHexa, ((MyLine) myDraws.peek()).getThickness(), ((MyLine) myDraws.peek()).getX1(),
+//                            ((MyLine) myDraws.peek()).getY1(), ((MyLine) myDraws.peek()).getX2(), ((MyLine) myDraws.peek()).getY2(),
+//                            false, -1, -1, null, null, /*gc,*/ "MyLine", "");
+//                }
+//                else if(myDraws.peek() instanceof MyOval) {
+//                    drawing = new CompleteDraw(colorInHexa, ((MyOval) myDraws.peek()).getThickness(), ((MyOval) myDraws.peek()).getX1(),
+//                            ((MyOval) myDraws.peek()).getY1(), ((MyOval) myDraws.peek()).getWidth(), ((MyOval) myDraws.peek()).getHeight(),
+//                            ((MyOval) myDraws.peek()).toFill(), -1, -1, null, null, /*gc,*/ "MyOval", "");
+//                }
+//                else if(myDraws.peek() instanceof MyRect) {
+//                    drawing = new CompleteDraw(colorInHexa, ((MyRect) myDraws.peek()).getThickness(), ((MyRect) myDraws.peek()).getX1(),
+//                            ((MyRect) myDraws.peek()).getY1(), ((MyRect) myDraws.peek()).getWidth(), ((MyRect) myDraws.peek()).getHeight(),
+//                            ((MyRect) myDraws.peek()).toFill(), -1, -1, null, null, /*gc,*/ "MyRect", "");
+//                }
+//                else if(myDraws.peek() instanceof MyRoundRect) {
+//                    drawing = new CompleteDraw(colorInHexa, ((MyRoundRect) myDraws.peek()).getThickness(), ((MyRoundRect) myDraws.peek()).getX1(),
+//                            ((MyRoundRect) myDraws.peek()).getY1(), ((MyRoundRect) myDraws.peek()).getWidth(),
+//                            ((MyRoundRect) myDraws.peek()).getHeight(), ((MyRoundRect) myDraws.peek()).toFill(),
+//                            ((MyRoundRect) myDraws.peek()).getArcWidth(), ((MyRoundRect) myDraws.peek()).getArcHeight(),
+//                            null, null, /*gc,*/ "MyRoundRect", "");
+//                }
+//                else if(myDraws.peek() instanceof TextBox) {
+//                    drawing = new CompleteDraw(colorInHexa, ((TextBox) myDraws.peek()).getThickness(), ((TextBox) myDraws.peek()).getX(),
+//                            ((TextBox) myDraws.peek()).getY(), -1, -1,
+//                            false, -1, -1, null, null, /*gc,*/ "TextBox", ((TextBox) myDraws.peek()).getText());
+//                    drawing.setText(((TextBox) myDraws.peek()).getText());
+//                }
+                CompleteDraw drawing = convertMyDrawToCompleteDraw(myDraws.peek());
                 try {
                     outQueue.put(Packet.sendNewDrawing(drawing));
                 } catch (InterruptedException exception) {
@@ -644,6 +777,63 @@ public class WhiteboardRoom {
 
     public VBox getChatBox() {
         return chatBox;
+    }
+
+    public CompleteDraw convertMyDrawToCompleteDraw(MyDraw draw) {
+        CompleteDraw drawing = null;
+        String colorInHexa = String.format( "#%02X%02X%02X",
+                (int)( draw.getColor().getRed() * 255 ),
+                (int)( draw.getColor().getGreen() * 255 ),
+                (int)( draw.getColor().getBlue() * 255 ) );
+        if(draw instanceof MyBrush) {
+                    /* String color, double thickness, double x1, double y1, double x2, double y2, boolean fill, int arcW, int arcH,
+                        ArrayList<Double> xPoints, ArrayList<Double> yPoints) */
+            drawing = new CompleteDraw(colorInHexa, ((MyBrush) draw).getThickness(), -1, -1, -1, -1,
+                    ((MyBrush) draw).isFill(), -1, -1, ((MyBrush) draw).getXPoints(),
+                    ((MyBrush) draw).getYPoints(), /*gc,*/ "MyBrush", "");
+        }
+        else if(draw instanceof MyLine) {
+            drawing = new CompleteDraw(colorInHexa, ((MyLine) draw).getThickness(), ((MyLine) draw).getX1(),
+                    ((MyLine) draw).getY1(), ((MyLine) draw).getX2(), ((MyLine) draw).getY2(),
+                    false, -1, -1, null, null, /*gc,*/ "MyLine", "");
+        }
+        else if(draw instanceof MyOval) {
+            drawing = new CompleteDraw(colorInHexa, ((MyOval) draw).getThickness(), ((MyOval) draw).getX1(),
+                    ((MyOval) draw).getY1(), ((MyOval) draw).getWidth(), ((MyOval) draw).getHeight(),
+                    ((MyOval) draw).toFill(), -1, -1, null, null, /*gc,*/ "MyOval", "");
+        }
+        else if(draw instanceof MyRect) {
+            drawing = new CompleteDraw(colorInHexa, ((MyRect) draw).getThickness(), ((MyRect) draw).getX1(),
+                    ((MyRect) draw).getY1(), ((MyRect) draw).getWidth(), ((MyRect) draw).getHeight(),
+                    ((MyRect) draw).toFill(), -1, -1, null, null, /*gc,*/ "MyRect", "");
+        }
+        else if(draw instanceof MyRoundRect) {
+            drawing = new CompleteDraw(colorInHexa, ((MyRoundRect) draw).getThickness(), ((MyRoundRect) draw).getX1(),
+                    ((MyRoundRect) draw).getY1(), ((MyRoundRect) draw).getWidth(),
+                    ((MyRoundRect) draw).getHeight(), ((MyRoundRect) draw).toFill(),
+                    ((MyRoundRect) draw).getArcWidth(), ((MyRoundRect) draw).getArcHeight(),
+                    null, null, /*gc,*/ "MyRoundRect", "");
+        }
+        else if(draw instanceof TextBox) {
+            drawing = new CompleteDraw(colorInHexa, ((TextBox) draw).getThickness(), ((TextBox) draw).getX(),
+                    ((TextBox) draw).getY(), -1, -1,
+                    false, -1, -1, null, null, /*gc,*/ "TextBox", ((TextBox) draw).getText());
+            drawing.setText(((TextBox) draw).getText());
+        }
+        return drawing;
+    }
+
+    public static byte[] serialize(Object obj) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ObjectOutputStream os = new ObjectOutputStream(out);
+        os.writeObject(obj);
+        return out.toByteArray();
+    }
+
+    public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
+        ByteArrayInputStream in = new ByteArrayInputStream(data);
+        ObjectInputStream is = new ObjectInputStream(in);
+        return is.readObject();
     }
 
 }

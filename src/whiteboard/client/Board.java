@@ -15,6 +15,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.apache.commons.io.IOUtils;
 import whiteboard.Connection;
 import whiteboard.Packet;
 import whiteboard.server.Handler;
@@ -23,10 +24,12 @@ import whiteboard.server.Server;
 import javax.sql.rowset.JdbcRowSet;
 import javax.sql.rowset.RowSetProvider;
 import java.awt.*;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.net.Socket;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -205,148 +208,308 @@ public class Board extends Application{
                 }
 
                 dialog.close();
+                List<CompleteDraw> completeDraws;
+                //boolean tableExists = true;
+                //java.sql.Connection connection = null;
+                try (java.sql.Connection connection = DriverManager.getConnection(Board.DATABASE_URL)){
+
+                    Statement statement = connection.createStatement();
+                    statement.setQueryTimeout(2);  // set timeout to 30 sec.
+                    ResultSet resultSet = statement.executeQuery("SELECT * FROM save");
+
+
+                    // get ResultSet's meta data
+                    ResultSetMetaData metaData = resultSet.getMetaData();
+                    int numberOfColumns = metaData.getColumnCount();
+
+                    //if(resultSet.next()) {
+                    resultSet.next();
+                    byte[] arr = resultSet.getBytes("DRAWING");
+//                    InputStream is = blob.getBinaryStream();
+//                    byte[] arr = IOUtils.toByteArray(is);
+                    completeDraws = (List<CompleteDraw>) deserialize(arr);
+                    try {
+                        outQueue.put(Packet.createRoomWithDrawings(input.getRoomName(), completeDraws));
+                    } catch (InterruptedException exception) {
+                        exception.printStackTrace();
+                    }
+                    // }
+//                    while (resultSet.next()) {
+//                        //for (int i = 1; i <= metaData.getColumnCount(); i++) {
+//
+//                            //TODO: read all the other variables from the table into color, thickness, x1, y1, x2, y2, fill, arcW, arcH, ...
+//
+//                            if(resultSet.getObject(1).equals("MyBrush")) {
+//
+//                                // xString == "1.3, 4.2, 5.6, 9.7"
+//                                String xString = resultSet.getString("XPOINTS"); // Read into this variable from the database
+//                                String yString = resultSet.getString("YPOINTS"); // Read into this variable from the database
+//
+//                                // Take the X,Y points strings and convert them to ArrayList<Double>
+//                                // xStringArr == ["1.3", "4.2", "5.6", "9.7"]
+//                                String[] xStringArr = xString.split(", ");
+//                                // xPoints == ArrayList[1.3, 4.2, 5.6, 9.7]
+//                                ArrayList<Double> xPoints = new ArrayList<>();
+//                                for (String x : xStringArr) {
+//                                    xPoints.add(Double.parseDouble(x));
+//                                }
+//                                String[] yStringArr = yString.split(", ");
+//                                ArrayList<Double> yPoints = new ArrayList<>();
+//                                for (String y : yStringArr) {
+//                                    yPoints.add(Double.parseDouble(y));
+//                                }
+//
+//
+//
+//                                completeDraws.add(new CompleteDraw("#" + resultSet.getString("COLOR"),
+//                                        resultSet.getDouble("THICKNESS"),
+//                                        resultSet.getDouble("X1"),
+//                                        resultSet.getDouble("Y1"),
+//                                        resultSet.getDouble("X2"),
+//                                        resultSet.getDouble("Y2"),
+//                                        resultSet.getBoolean("FILL"),
+//                                        resultSet.getInt("ARCW"),
+//                                        resultSet.getInt("ARCH"),
+//                                        /*deserialize(resultSet.getObject("XPOINTS"))*/null,
+//                                        /*deserialize(resultSet.getObject("YPOINTS"))*/null, "MyBrush",
+//                                        resultSet.getString("TEXTBOX")));
+//                                // After getting all the variables of CompleteDraw from the database
+////                    completeDraws.add(new CompleteDraw(color, thickness, x1, y1, x2, y2, fill, arcW, arcH, xPoints, yPoints, shape));
+//                            }
+//
+//                            else if(resultSet.getObject(1).equals("MyLine")) {
+//                                completeDraws.add(new CompleteDraw("#" + resultSet.getString("COLOR"),
+//                                        resultSet.getDouble("THICKNESS"),
+//                                        resultSet.getDouble("X1"),
+//                                        resultSet.getDouble("Y1"),
+//                                        resultSet.getDouble("X2"),
+//                                        resultSet.getDouble("Y2"),
+//                                        resultSet.getBoolean("FILL"),
+//                                        resultSet.getInt("ARCW"),
+//                                        resultSet.getInt("ARCH"),
+//                                        null, null, "MyLine",
+//                                        resultSet.getString("TEXTBOX")));
+//                            }
+//
+//                            else if(resultSet.getObject(1).equals("MyOval")) {
+//                                completeDraws.add(new CompleteDraw(resultSet.getString("COLOR"),
+//                                        resultSet.getDouble("THICKNESS"),
+//                                        resultSet.getDouble("X1"),
+//                                        resultSet.getDouble("Y1"),
+//                                        resultSet.getDouble("X2"),
+//                                        resultSet.getDouble("Y2"),
+//                                        resultSet.getBoolean("FILL"),
+//                                        resultSet.getInt("ARCW"),
+//                                        resultSet.getInt("ARCH"),
+//                                        null, null, "MyOval",
+//                                        resultSet.getString("TEXTBOX")));
+//                            }
+//
+//                            else if(resultSet.getObject(1).equals("MyRect")) {
+//                                completeDraws.add(new CompleteDraw(resultSet.getString("COLOR"),
+//                                        resultSet.getDouble("THICKNESS"),
+//                                        resultSet.getDouble("X1"),
+//                                        resultSet.getDouble("Y1"),
+//                                        resultSet.getDouble("X2"),
+//                                        resultSet.getDouble("Y2"),
+//                                        resultSet.getBoolean("FILL"),
+//                                        resultSet.getInt("ARCW"),
+//                                        resultSet.getInt("ARCH"),
+//                                        null, null, "MyRect",
+//                                        resultSet.getString("TEXTBOX")));
+//                            }
+//
+//                            else if(resultSet.getObject(1).equals("MyRoundRect")) {
+//                                completeDraws.add(new CompleteDraw(resultSet.getString("COLOR"),
+//                                        resultSet.getDouble("THICKNESS"),
+//                                        resultSet.getDouble("X1"),
+//                                        resultSet.getDouble("Y1"),
+//                                        resultSet.getDouble("X2"),
+//                                        resultSet.getDouble("Y2"),
+//                                        resultSet.getBoolean("FILL"),
+//                                        resultSet.getInt("ARCW"),
+//                                        resultSet.getInt("ARCH"),
+//                                        null, null, "MyRoundRect",
+//                                        resultSet.getString("TEXTBOX")));
+//                            }
+//
+//                            else if(resultSet.getObject(1).equals("TextBox")) {
+//                                completeDraws.add(new CompleteDraw(resultSet.getString("COLOR"),
+//                                        resultSet.getDouble("THICKNESS"),
+//                                        resultSet.getDouble("X1"),
+//                                        resultSet.getDouble("Y1"),
+//                                        resultSet.getDouble("X2"),
+//                                        resultSet.getDouble("Y2"),
+//                                        resultSet.getBoolean("FILL"),
+//                                        resultSet.getInt("ARCW"),
+//                                        resultSet.getInt("ARCH"),
+//                                        null, null, "TextBox",
+//                                        resultSet.getString("TEXTBOX")));
+//                            }
+//                        //}
+//                    }
+
+                    //TODO: this block gives NotSerializableException
+
+                }
+                catch (SQLException | IOException | ClassNotFoundException sqlException)
+                {
+                    sqlException.printStackTrace();
+                    System.exit(1);
+                }
             });
 
-            if (input.getRoomName() == null) { return; }
+            //if (input.getRoomName() == null) { return; }
 
-            List<CompleteDraw> completeDraws = new ArrayList<>();
-            boolean tableExists = true;
-            try (JdbcRowSet rowSet = RowSetProvider.newFactory().createJdbcRowSet()) {
-                // specify JdbcRowSet properties
-                rowSet.setUrl(Board.DATABASE_URL);
-                try {
-                    rowSet.setCommand("SELECT * FROM save");
-                    rowSet.execute();
-                }
-                catch (SQLException exception) {
-                    tableExists = false;
-                }
-
-                if(tableExists) {
-                    ResultSetMetaData metaData = rowSet.getMetaData();
-                    while (rowSet.next()) {
-                        //for (int i = 1; i <= metaData.getColumnCount(); i++) {
-
-                            //TODO: read all the other variables from the table into color, thickness, x1, y1, x2, y2, fill, arcW, arcH, ...
-
-                            if(rowSet.getObject(1).equals("MyBrush")) {
-
-                                // xString == "1.3, 4.2, 5.6, 9.7"
-                                String xString = rowSet.getString("XPOINTS"); // Read into this variable from the database
-                                String yString = rowSet.getString("YPOINTS"); // Read into this variable from the database
-
-                                // Take the X,Y points strings and convert them to ArrayList<Double>
-                                // xStringArr == ["1.3", "4.2", "5.6", "9.7"]
-                                String[] xStringArr = xString.split(", ");
-                                // xPoints == ArrayList[1.3, 4.2, 5.6, 9.7]
-                                ArrayList<Double> xPoints = new ArrayList<>();
-                                for (String x : xStringArr) {
-                                    xPoints.add(Double.parseDouble(x));
-                                }
-                                String[] yStringArr = yString.split(", ");
-                                ArrayList<Double> yPoints = new ArrayList<>();
-                                for (String y : yStringArr) {
-                                    yPoints.add(Double.parseDouble(y));
-                                }
-
-                                completeDraws.add(new CompleteDraw(rowSet.getString("COLOR"),
-                                        rowSet.getDouble("THICKNESS"),
-                                        rowSet.getDouble("X1"),
-                                        rowSet.getDouble("Y1"),
-                                        rowSet.getDouble("X2"),
-                                        rowSet.getDouble("Y2"),
-                                        rowSet.getBoolean("FILL"),
-                                        rowSet.getInt("ARCW"),
-                                        rowSet.getInt("ARCH"),
-                                        xPoints, yPoints, "MyBrush",
-                                        rowSet.getString("TEXTBOX")));
-                                // After getting all the variables of CompleteDraw from the database
-//                    completeDraws.add(new CompleteDraw(color, thickness, x1, y1, x2, y2, fill, arcW, arcH, xPoints, yPoints, shape));
-                            }
-
-                            else if(rowSet.getObject(1).equals("MyLine")) {
-                                completeDraws.add(new CompleteDraw(rowSet.getString("COLOR"),
-                                        rowSet.getDouble("THICKNESS"),
-                                        rowSet.getDouble("X1"),
-                                        rowSet.getDouble("Y1"),
-                                        rowSet.getDouble("X2"),
-                                        rowSet.getDouble("Y2"),
-                                        rowSet.getBoolean("FILL"),
-                                        rowSet.getInt("ARCW"),
-                                        rowSet.getInt("ARCH"),
-                                        null, null, "MyLine",
-                                        rowSet.getString("TEXTBOX")));
-                            }
-
-                            else if(rowSet.getObject(1).equals("MyOval")) {
-                                completeDraws.add(new CompleteDraw(rowSet.getString("COLOR"),
-                                        rowSet.getDouble("THICKNESS"),
-                                        rowSet.getDouble("X1"),
-                                        rowSet.getDouble("Y1"),
-                                        rowSet.getDouble("X2"),
-                                        rowSet.getDouble("Y2"),
-                                        rowSet.getBoolean("FILL"),
-                                        rowSet.getInt("ARCW"),
-                                        rowSet.getInt("ARCH"),
-                                        null, null, "MyOval",
-                                        rowSet.getString("TEXTBOX")));
-                            }
-
-                            else if(rowSet.getObject(1).equals("MyRect")) {
-                                completeDraws.add(new CompleteDraw(rowSet.getString("COLOR"),
-                                        rowSet.getDouble("THICKNESS"),
-                                        rowSet.getDouble("X1"),
-                                        rowSet.getDouble("Y1"),
-                                        rowSet.getDouble("X2"),
-                                        rowSet.getDouble("Y2"),
-                                        rowSet.getBoolean("FILL"),
-                                        rowSet.getInt("ARCW"),
-                                        rowSet.getInt("ARCH"),
-                                        null, null, "MyRect",
-                                        rowSet.getString("TEXTBOX")));
-                            }
-
-                            else if(rowSet.getObject(1).equals("MyRoundRect")) {
-                                completeDraws.add(new CompleteDraw(rowSet.getString("COLOR"),
-                                        rowSet.getDouble("THICKNESS"),
-                                        rowSet.getDouble("X1"),
-                                        rowSet.getDouble("Y1"),
-                                        rowSet.getDouble("X2"),
-                                        rowSet.getDouble("Y2"),
-                                        rowSet.getBoolean("FILL"),
-                                        rowSet.getInt("ARCW"),
-                                        rowSet.getInt("ARCH"),
-                                        null, null, "MyRoundRect",
-                                        rowSet.getString("TEXTBOX")));
-                            }
-
-                            else if(rowSet.getObject(1).equals("TextBox")) {
-                                completeDraws.add(new CompleteDraw(rowSet.getString("COLOR"),
-                                        rowSet.getDouble("THICKNESS"),
-                                        rowSet.getDouble("X1"),
-                                        rowSet.getDouble("Y1"),
-                                        rowSet.getDouble("X2"),
-                                        rowSet.getDouble("Y2"),
-                                        rowSet.getBoolean("FILL"),
-                                        rowSet.getInt("ARCW"),
-                                        rowSet.getInt("ARCH"),
-                                        null, null, "TextBox",
-                                        rowSet.getString("TEXTBOX")));
-                            }
-                        //}
-                    }
-                }
-                try {
-                    outQueue.put(Packet.createRoomWithDrawings(input.getRoomName(), completeDraws));
-                } catch (InterruptedException exception) {
-                    exception.printStackTrace();
-                }
-            }
-            catch (SQLException sqlException)
-            {
-                sqlException.printStackTrace();
-                System.exit(1);
-            }
+//            List<CompleteDraw> completeDraws;
+//            //boolean tableExists = true;
+//            java.sql.Connection connection = null;
+//            try {
+//                connection = DriverManager.getConnection(Board.DATABASE_URL);
+//                Statement statement = connection.createStatement();
+//                statement.setQueryTimeout(30);  // set timeout to 30 sec.
+//                ResultSet resultSet = statement.executeQuery("SELECT * FROM save");
+//
+//
+//                // get ResultSet's meta data
+//                ResultSetMetaData metaData = resultSet.getMetaData();
+//                int numberOfColumns = metaData.getColumnCount();
+//
+//                //if(resultSet.next()) {
+//                resultSet.next();
+//                    byte[] arr = resultSet.getBytes("DRAWING");
+////                    InputStream is = blob.getBinaryStream();
+////                    byte[] arr = IOUtils.toByteArray(is);
+//                    completeDraws = (List<CompleteDraw>) deserialize(arr);
+//                    try {
+//                        outQueue.put(Packet.createRoomWithDrawings(input.getRoomName(), completeDraws));
+//                    } catch (InterruptedException exception) {
+//                        exception.printStackTrace();
+//                    }
+//               // }
+////                    while (resultSet.next()) {
+////                        //for (int i = 1; i <= metaData.getColumnCount(); i++) {
+////
+////                            //TODO: read all the other variables from the table into color, thickness, x1, y1, x2, y2, fill, arcW, arcH, ...
+////
+////                            if(resultSet.getObject(1).equals("MyBrush")) {
+////
+////                                // xString == "1.3, 4.2, 5.6, 9.7"
+////                                String xString = resultSet.getString("XPOINTS"); // Read into this variable from the database
+////                                String yString = resultSet.getString("YPOINTS"); // Read into this variable from the database
+////
+////                                // Take the X,Y points strings and convert them to ArrayList<Double>
+////                                // xStringArr == ["1.3", "4.2", "5.6", "9.7"]
+////                                String[] xStringArr = xString.split(", ");
+////                                // xPoints == ArrayList[1.3, 4.2, 5.6, 9.7]
+////                                ArrayList<Double> xPoints = new ArrayList<>();
+////                                for (String x : xStringArr) {
+////                                    xPoints.add(Double.parseDouble(x));
+////                                }
+////                                String[] yStringArr = yString.split(", ");
+////                                ArrayList<Double> yPoints = new ArrayList<>();
+////                                for (String y : yStringArr) {
+////                                    yPoints.add(Double.parseDouble(y));
+////                                }
+////
+////
+////
+////                                completeDraws.add(new CompleteDraw("#" + resultSet.getString("COLOR"),
+////                                        resultSet.getDouble("THICKNESS"),
+////                                        resultSet.getDouble("X1"),
+////                                        resultSet.getDouble("Y1"),
+////                                        resultSet.getDouble("X2"),
+////                                        resultSet.getDouble("Y2"),
+////                                        resultSet.getBoolean("FILL"),
+////                                        resultSet.getInt("ARCW"),
+////                                        resultSet.getInt("ARCH"),
+////                                        /*deserialize(resultSet.getObject("XPOINTS"))*/null,
+////                                        /*deserialize(resultSet.getObject("YPOINTS"))*/null, "MyBrush",
+////                                        resultSet.getString("TEXTBOX")));
+////                                // After getting all the variables of CompleteDraw from the database
+//////                    completeDraws.add(new CompleteDraw(color, thickness, x1, y1, x2, y2, fill, arcW, arcH, xPoints, yPoints, shape));
+////                            }
+////
+////                            else if(resultSet.getObject(1).equals("MyLine")) {
+////                                completeDraws.add(new CompleteDraw("#" + resultSet.getString("COLOR"),
+////                                        resultSet.getDouble("THICKNESS"),
+////                                        resultSet.getDouble("X1"),
+////                                        resultSet.getDouble("Y1"),
+////                                        resultSet.getDouble("X2"),
+////                                        resultSet.getDouble("Y2"),
+////                                        resultSet.getBoolean("FILL"),
+////                                        resultSet.getInt("ARCW"),
+////                                        resultSet.getInt("ARCH"),
+////                                        null, null, "MyLine",
+////                                        resultSet.getString("TEXTBOX")));
+////                            }
+////
+////                            else if(resultSet.getObject(1).equals("MyOval")) {
+////                                completeDraws.add(new CompleteDraw(resultSet.getString("COLOR"),
+////                                        resultSet.getDouble("THICKNESS"),
+////                                        resultSet.getDouble("X1"),
+////                                        resultSet.getDouble("Y1"),
+////                                        resultSet.getDouble("X2"),
+////                                        resultSet.getDouble("Y2"),
+////                                        resultSet.getBoolean("FILL"),
+////                                        resultSet.getInt("ARCW"),
+////                                        resultSet.getInt("ARCH"),
+////                                        null, null, "MyOval",
+////                                        resultSet.getString("TEXTBOX")));
+////                            }
+////
+////                            else if(resultSet.getObject(1).equals("MyRect")) {
+////                                completeDraws.add(new CompleteDraw(resultSet.getString("COLOR"),
+////                                        resultSet.getDouble("THICKNESS"),
+////                                        resultSet.getDouble("X1"),
+////                                        resultSet.getDouble("Y1"),
+////                                        resultSet.getDouble("X2"),
+////                                        resultSet.getDouble("Y2"),
+////                                        resultSet.getBoolean("FILL"),
+////                                        resultSet.getInt("ARCW"),
+////                                        resultSet.getInt("ARCH"),
+////                                        null, null, "MyRect",
+////                                        resultSet.getString("TEXTBOX")));
+////                            }
+////
+////                            else if(resultSet.getObject(1).equals("MyRoundRect")) {
+////                                completeDraws.add(new CompleteDraw(resultSet.getString("COLOR"),
+////                                        resultSet.getDouble("THICKNESS"),
+////                                        resultSet.getDouble("X1"),
+////                                        resultSet.getDouble("Y1"),
+////                                        resultSet.getDouble("X2"),
+////                                        resultSet.getDouble("Y2"),
+////                                        resultSet.getBoolean("FILL"),
+////                                        resultSet.getInt("ARCW"),
+////                                        resultSet.getInt("ARCH"),
+////                                        null, null, "MyRoundRect",
+////                                        resultSet.getString("TEXTBOX")));
+////                            }
+////
+////                            else if(resultSet.getObject(1).equals("TextBox")) {
+////                                completeDraws.add(new CompleteDraw(resultSet.getString("COLOR"),
+////                                        resultSet.getDouble("THICKNESS"),
+////                                        resultSet.getDouble("X1"),
+////                                        resultSet.getDouble("Y1"),
+////                                        resultSet.getDouble("X2"),
+////                                        resultSet.getDouble("Y2"),
+////                                        resultSet.getBoolean("FILL"),
+////                                        resultSet.getInt("ARCW"),
+////                                        resultSet.getInt("ARCH"),
+////                                        null, null, "TextBox",
+////                                        resultSet.getString("TEXTBOX")));
+////                            }
+////                        //}
+////                    }
+//
+//                    //TODO: this block gives NotSerializableException
+//
+//            }
+//            catch (SQLException | IOException | ClassNotFoundException sqlException)
+//            {
+//                sqlException.printStackTrace();
+//                System.exit(1);
+//            }
         });
 
         /******************************* Refresh rooms button event handler ******************************/
@@ -387,7 +550,7 @@ public class Board extends Application{
 
             btn.setOnAction(eBtn -> {
 
-                //TODO: send a string to the server.                AtomicBoolean roomNameExists = new AtomicBoolean(false);
+                //TODO: send a string to the server.
                 boolean roomNameExists = false;
                 if(roomName.getText().trim().length() == 0) {
                     displayAlert(BLANK_ROOM_TITLE, BLANK_ROOM_MSG);
@@ -438,13 +601,15 @@ public class Board extends Application{
 
             loginWindow.getChildren().addAll(username, nickname, confirm);
 
-            Stage signIn = new Stage();
-            signIn.setTitle("Nickname screen");
-            signIn.initModality(Modality.NONE);
-            signIn.initOwner(stage);
+            input.signIn = new Stage();
+            input.signIn.setTitle("Nickname screen");
+            input.signIn.initModality(Modality.NONE);
+            input.signIn.initOwner(stage);
             Scene loginScene = new Scene(loginWindow, LOGIN_WINDOW_WIDTH, LOGIN_WINDOW_HEIGHT);
-            signIn.setScene(loginScene);
-            signIn.show();
+            input.signIn.setScene(loginScene);
+            input.signIn.show();
+
+            //TODO: finish identifying the user, finish working on the db CRAP.
 
             confirm.setOnAction(eConfirm -> {
 //                if(nickname.getText().trim().length() == 0) {
@@ -452,7 +617,7 @@ public class Board extends Application{
 //                }
 //                else {
 //                    boolean nameExists = false;
-//                    for (int i = 0; i < ; i++) {
+//                    for (int i = 0; i < Server.handlers.size() - 1; i++) {
 //                        if (.equals(nickname.getText())) {
 //                            System.out.println("AAA");
 //                            nameExists = true;
@@ -476,7 +641,27 @@ public class Board extends Application{
 //                        signIn.close();
 //                    }
 //                }
-                signIn.close();
+                try {
+                    outQueue.put(Packet.requestUsername(nickname.getText()));
+                } catch (InterruptedException exception) {
+                    exception.printStackTrace();
+                }
+                if(input.usernameAck) {
+                    try {
+                        outQueue.put(Packet.setUsername(nickname.getText()));
+                    } catch (InterruptedException exception) {
+                        exception.printStackTrace();
+                    }
+                    Text helloMsg = new Text("Hello " + nickname.getText());
+                    user = new Text(nickname.getText());
+                    helloMsg.setStyle(CssLayouts.cssBottomLayoutText);
+                    bottomM.getChildren().add(helloMsg);
+                    login.setVisible(false);
+                    input.signIn.close();
+                }
+                else {
+                    displayAlert("Name exists", USERNAME_EXISTS);
+                }
             });
         });
 
@@ -598,6 +783,12 @@ public class Board extends Application{
         alert.setHeaderText(null);
         alert.setContentText(text);
         alert.showAndWait();
+    }
+
+    public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
+        ByteArrayInputStream in = new ByteArrayInputStream(data);
+        ObjectInputStream is = new ObjectInputStream(in);
+        return is.readObject();
     }
 
     //TODO: have the user pick a nickname. make the create room dialog prettier.

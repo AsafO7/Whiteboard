@@ -2,14 +2,25 @@
   <library name="lib">
     <CLASSES>
       <root url="file://$USER_HOME$/Desktop/Javafx sdk 12/javafx-sdk-11.0.2/lib" />
-      <root url="jar://$USER_HOME$/Desktop/postgresql-42.2.18.jar!/" />
       <root url="jar://$PROJECT_DIR$/sqlite-jdbc-3.32.3.2.jar!/" />
+      <root url="jar://$PROJECT_DIR$/commons-io-2.8.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/commons-io-2.8.0-tests.jar!/" />
+      <root url="file://$PROJECT_DIR$" />
+      <root url="file://$PROJECT_DIR$" />
     </CLASSES>
-    <JAVADOC />
+    <JAVADOC>
+      <root url="jar://$PROJECT_DIR$/commons-io-2.8.0-javadoc.jar!/" />
+    </JAVADOC>
     <SOURCES>
       <root url="file://$USER_HOME$/Desktop/Javafx sdk 12/javafx-sdk-11.0.2/lib" />
+      <root url="jar://$PROJECT_DIR$/commons-io-2.8.0-sources.jar!/" />
+      <root url="jar://$PROJECT_DIR$/commons-io-2.8.0-test-sources.jar!/" />
+      <root url="file://$PROJECT_DIR$" />
+      <root url="file://$PROJECT_DIR$/src" />
     </SOURCES>
     <jarDirectory url="file://$USER_HOME$/Desktop/Javafx sdk 12/javafx-sdk-11.0.2/lib" recursive="false" />
+    <jarDirectory url="file://$PROJECT_DIR$" recursive="false" />
     <jarDirectory url="file://$USER_HOME$/Desktop/Javafx sdk 12/javafx-sdk-11.0.2/lib" recursive="false" type="SOURCES" />
+    <jarDirectory url="file://$PROJECT_DIR$" recursive="false" type="SOURCES" />
   </library>
 </component>

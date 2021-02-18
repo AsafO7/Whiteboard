@@ -34,7 +34,8 @@ public class InputHandler implements Runnable {
     public WhiteboardRoom myRoom = null;
     public String roomName = null;
     private List<String> roomsNames = new ArrayList<>();
-    private boolean isHost = false;
+    public Stage signIn = null;
+    public boolean usernameAck = false;
 
     private final String SAME_ROOM_NAME_TITLE = "Room already exists",
             SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.";
@@ -58,9 +59,14 @@ public class InputHandler implements Runnable {
                 Packet packet = (Packet) in.readObject();
 
                 switch (packet.getType()) {
-                    case ACK_USERNAME:
+                    case ACK_SET_USERNAME:
                         String username = packet.getUsername();
                         Platform.runLater(() -> handlerSetUser(username));
+                        break;
+                    case ACK_USERNAME:
+                        if(packet.getAckUsername()) {
+                            Platform.runLater(() -> handleAckUsername());
+                        }
                         break;
                     case ROOMS_NAMES:
                         List<String> roomsNames = packet.getRoomsNames();
@@ -68,7 +74,6 @@ public class InputHandler implements Runnable {
                         break;
                     case ACK_CREATE_ROOM:
                         if(packet.getAckCreateRoom()) {
-                            isHost = true;
                             Platform.runLater(this::handleNewRoomTransfer);
                         }
                         else {
@@ -89,16 +94,12 @@ public class InputHandler implements Runnable {
                         break;
                     case ACK_JOIN_ROOM:
                         if(packet.getAckJoinRoom()) {
-                            isHost = false;
                             Platform.runLater(this::handleNewRoomTransfer);
                         }
                         else {
                             outQueue.put(Packet.requestRoomsNames());
                             //TODO: find a way to display alert for not being able to join the room (or don't, I don't give a fuck)
                         }
-                        break;
-                    case SET_HOST:
-                        Platform.runLater(() -> setNewHost());
                         break;
                 }
             }
@@ -113,6 +114,10 @@ public class InputHandler implements Runnable {
                 }
             }
         }
+    }
+
+    private void handleAckUsername() {
+        usernameAck = true;
     }
 
     private void handlerSetUser(String username) {
@@ -138,7 +143,6 @@ public class InputHandler implements Runnable {
     private void handleNewRoomTransfer() {
         String roomName = this.roomName;
         myRoom = new WhiteboardRoom(this.user.getText(), this);
-        if(!isHost) { myRoom.setHost(isHost); }
         stage.setScene(myRoom.showBoard(stage,user,scene, outQueue));
     }
 
