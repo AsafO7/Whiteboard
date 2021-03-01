@@ -15,7 +15,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import org.apache.commons.io.IOUtils;
 import whiteboard.Connection;
 import whiteboard.Packet;
 import whiteboard.server.Handler;
@@ -213,14 +212,15 @@ public class Board extends Application{
                 //java.sql.Connection connection = null;
                 try (java.sql.Connection connection = DriverManager.getConnection(Board.DATABASE_URL)){
 
+                    //TODO: Check if the db exists, if it doesn't tell the user to jump off a 1k height bridge.
                     Statement statement = connection.createStatement();
                     statement.setQueryTimeout(2);  // set timeout to 30 sec.
                     ResultSet resultSet = statement.executeQuery("SELECT * FROM save");
 
 
                     // get ResultSet's meta data
-                    ResultSetMetaData metaData = resultSet.getMetaData();
-                    int numberOfColumns = metaData.getColumnCount();
+                    //ResultSetMetaData metaData = resultSet.getMetaData();
+                    //int numberOfColumns = metaData.getColumnCount();
 
                     //if(resultSet.next()) {
                     resultSet.next();
@@ -609,7 +609,7 @@ public class Board extends Application{
             input.signIn.setScene(loginScene);
             input.signIn.show();
 
-            //TODO: finish identifying the user, finish working on the db CRAP.
+            //TODO: finish identifying the user.
 
             confirm.setOnAction(eConfirm -> {
 //                if(nickname.getText().trim().length() == 0) {
@@ -791,16 +791,14 @@ public class Board extends Application{
         return is.readObject();
     }
 
-    //TODO: have the user pick a nickname. make the create room dialog prettier.
+    //TODO: have the user pick a nickname.
+    //TODO: add painting to nametag when someone's drawing.
 
     //TODO: Idea: keep the information about rooms in the database and change scenes acording to that.
     //MAKE A CLASS TO CALL BOARD
 
-    //TODO: check why Board is still running after pressing the standard X.
     //TODO: maybe make a close room button.
-    //TODO: have the server take care of database requests.
     //TODO: make the cursor look like a pen.
     //TODO: maybe add background image to the other menus.
-    //TODO: make users who exited, by clicking 'X' on the window, disappear from the users list in the server
 }
 
