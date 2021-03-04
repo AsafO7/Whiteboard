@@ -25,23 +25,25 @@ import java.util.concurrent.BlockingQueue;
 public class InputHandler implements Runnable {
 
     private static final int CHAT_MESSAGE_WRAPPING_WIDTH = 230;
+    private final Board board;
     private final Stage stage;
     private Scene scene;
     private final Socket socket;
     private final VBox lobby;
     private BlockingQueue<Packet> outQueue;
-    private Text user = new Text("AAA");
+    //private Text user = new Text("AAA");
     public WhiteboardRoom myRoom = null;
     public String roomName = null;
     private List<String> roomsNames = new ArrayList<>();
-    public Stage signIn = null;
-    public boolean usernameAck = false;
+//    public Stage signIn = null;
+    public String username = null;
 
     private final String SAME_ROOM_NAME_TITLE = "Room already exists",
             SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.";
 
-    public InputHandler(Socket socket, VBox currentLobby, Stage stage, Scene scene, BlockingQueue<Packet> outQueue) {
+    public InputHandler(Socket socket, Board board, VBox currentLobby, Stage stage, Scene scene, BlockingQueue<Packet> outQueue) {
         this.socket = socket;
+        this.board = board;
         this.lobby = currentLobby; // the GUI container of the rooms.
         this.stage = stage;
         this.scene = scene; // lobby scene.
@@ -57,16 +59,12 @@ public class InputHandler implements Runnable {
 
             while (true) {
                 Packet packet = (Packet) in.readObject();
+                boolean ack;
 
                 switch (packet.getType()) {
-                    case ACK_SET_USERNAME:
-                        String username = packet.getUsername();
-                        Platform.runLater(() -> handlerSetUser(username));
-                        break;
                     case ACK_USERNAME:
-                        if(packet.getAckUsername()) {
-                            Platform.runLater(() -> handleAckUsername());
-                        }
+                        ack = packet.getAckUsername();
+                        Platform.runLater(() -> board.handleAckUsername(ack));
                         break;
                     case ROOMS_NAMES:
                         List<String> roomsNames = packet.getRoomsNames();
@@ -116,12 +114,22 @@ public class InputHandler implements Runnable {
         }
     }
 
-    private void handleAckUsername() {
-        usernameAck = true;
-    }
+//    private void handleAckUsername(boolean ack) {
+//        if(ack) {
+//            Text helloMsg = new Text("Hello " + username);
+//            //user = new Text(username);
+//            helloMsg.setStyle(CssLayouts.cssBottomLayoutText);
+//            bottomM.getChildren().add(helloMsg);
+//            login.setVisible(false);
+//            input.signIn.close();
+//        }
+//        else {
+//            displayAlert("Name exists", USERNAME_EXISTS);
+//        }
+//    }
 
     private void handlerSetUser(String username) {
-        this.user.setText(username);
+        this.username = username;
     }
 
     private void setNewHost() {
@@ -142,8 +150,8 @@ public class InputHandler implements Runnable {
 
     private void handleNewRoomTransfer() {
         String roomName = this.roomName;
-        myRoom = new WhiteboardRoom(this.user.getText(), this);
-        stage.setScene(myRoom.showBoard(stage,user,scene, outQueue));
+        myRoom = new WhiteboardRoom(this.username, this);
+        stage.setScene(myRoom.showBoard(stage,new Text(username),scene, outQueue));
     }
 
     //different users don't have the same rooms list.
@@ -171,14 +179,16 @@ public class InputHandler implements Runnable {
 
     private void addEventListener(VBox lobby, int i, List<String> roomsNames) {
         lobby.getChildren().get(i).setOnMouseClicked(e -> {
-            try {
-                outQueue.put(Packet.requestJoinRoom(roomsNames.get(i)));
-            } catch (InterruptedException exception) {
-                exception.printStackTrace();
+            if(board.isLoggedIn) {
+                try {
+                    outQueue.put(Packet.requestJoinRoom(roomsNames.get(i)));
+                } catch (InterruptedException exception) {
+                    exception.printStackTrace();
+                }
             }
-
-//            stage.setScene(drawingRooms.get(i).showBoard(stage,user,scene, outQueue));
-//            drawingRooms.get(i).repaint();
+            else {
+                board.displayAlert("", board.EMTER_LOBBY_TEXT);
+            }
         });
         lobby.getChildren().get(i).setOnMouseEntered(e -> {
             lobby.setCursor(Cursor.HAND);
@@ -189,7 +199,7 @@ public class InputHandler implements Runnable {
     }
 
     private void handleReceivedMessage(String msg) {
-        Text msgToReceive = new Text(user.getText() + ": " + msg);
+        Text msgToReceive = new Text(msg);
         msgToReceive.setStyle(CssLayouts.cssChatText);
         msgToReceive.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
         //System.out.println(currRoom);

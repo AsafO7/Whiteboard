@@ -50,10 +50,6 @@ public class Handler implements Runnable {
                 }
                 Packet.Type type = packet.getType();
                 switch (type) {
-                    case SET_USERNAME:
-                        String user = packet.getUsername();
-                        this.handleSetUsername(user);
-                        break;
                     case REQUEST_USERNAME:
                         String username = packet.getUsername();
                         this.handleRequestUsername(username);
@@ -131,26 +127,26 @@ public class Handler implements Runnable {
     }
 
     private void handleRequestUsername(String username) {
+        boolean ack = true;
         synchronized (allUsers) {
-            if (allUsers.isEmpty()) {
-                try {
-                    outQueue.put(Packet.ackUsername(true));
-                } catch (InterruptedException exception) {
-                    exception.printStackTrace();
-                }
-            }
+//            if (allUsers.isEmpty()) {
+//                try {
+//                    outQueue.put(Packet.ackUsername(true));
+//                } catch (InterruptedException exception) {
+//                    exception.printStackTrace();
+//                }
+//            }
             for (Handler handler : allUsers) {
-                if (handler.username.equals(username)) {
-                    try {
-                        outQueue.put(Packet.ackUsername(false));
-                    } catch (InterruptedException exception) {
-                        exception.printStackTrace();
-                    }
+                if (this != handler && handler.username != null && handler.username.equals(username)) {
+                    ack = false;
+                    break;
                 }
             }
+            // Add the user to allUsers
+            if (ack) { this.username = username; }
         }
         try {
-            outQueue.put(Packet.ackUsername(true));
+            outQueue.put(Packet.ackUsername(ack));
         } catch (InterruptedException exception) {
             exception.printStackTrace();
         }
@@ -178,25 +174,6 @@ public class Handler implements Runnable {
             }
         }
     }
-
-//    private void handleSetHost() {
-//        synchronized (currRoom.getUsers()) {
-//            if (currRoom.getUsers().isEmpty()) {
-//                return;
-//            }
-//            try {
-//                for(Handler handler: currRoom.getUsers()) {
-//                    if(handler != this) {
-//                        handler.outQueue.put(Packet.setHost());
-//                        break;
-//                    }
-//                }
-//                //currRoom.getUsers().get(1).outQueue.put(Packet.setHost());
-//            } catch (InterruptedException exception) {
-//                exception.printStackTrace();
-//            }
-//        }
-//    }
 
     private void handleRequestExitRoom() {
         if (currRoom != null) {
@@ -246,16 +223,6 @@ public class Handler implements Runnable {
         this.currRoom = null;
     }
 
-    private void handleSetUsername(String user) {
-        this.username = user;
-        try {
-            outQueue.put(Packet.ackUsername(this.username));
-        } catch (InterruptedException exception) {
-            exception.printStackTrace();
-        }
-
-    }
-
     private void handleAddUserToRoom(String roomName) {
         synchronized (rooms) {
             for (Room room : rooms) {
@@ -295,23 +262,27 @@ public class Handler implements Runnable {
     }
 
     private void handleCreateRoomWithDrawings(String name, List<CompleteDraw> drawings) {
+        if(currRoom != null) { return; }
         boolean answer = true;
-        synchronized (rooms) {
-            for (Room room : rooms) {
-                if (room.getName().equals(name)) {
-                    answer = false;
-                    break;
+        if (username == null) { answer = false; }
+        else {
+            synchronized (rooms) {
+                for (Room room : rooms) {
+                    if (room.getName().equals(name)) {
+                        answer = false;
+                        break;
+                    }
+                }
+                if (answer) {
+                    this.currRoom = new Room(name);
+                    rooms.add(currRoom);
+                    currRoom.setHost(this);
                 }
             }
-            if(answer) {
-                this.currRoom = new Room(name);
-                rooms.add(currRoom);
-                currRoom.setHost(this);
+            if (answer) {
+                handleAddUserToRoom(currRoom.getName());
+                currRoom.getDrawings().addAll(drawings);
             }
-        }
-        if (answer) {
-            handleAddUserToRoom(currRoom.getName());
-            currRoom.getDrawings().addAll(drawings);
         }
         try {
             outQueue.put(Packet.ackCreateRoom(answer));
@@ -321,22 +292,26 @@ public class Handler implements Runnable {
     }
 
     private void handleCreateRoom(String name) {
+        if(currRoom != null) { return; }
         boolean answer = true;
-        synchronized (rooms) {
-            for (Room room : rooms) {
-                if (room.getName().equals(name)) {
-                    answer = false;
-                    break;
+        if (username == null) { answer = false; }
+        else {
+            synchronized (rooms) {
+                for (Room room : rooms) {
+                    if (room.getName().equals(name)) {
+                        answer = false;
+                        break;
+                    }
+                }
+                if (answer) {
+                    this.currRoom = new Room(name);
+                    rooms.add(currRoom);
+                    currRoom.setHost(this);
                 }
             }
-            if(answer) {
-                this.currRoom = new Room(name);
-                rooms.add(currRoom);
-                currRoom.setHost(this);
+            if (answer) {
+                handleAddUserToRoom(currRoom.getName());
             }
-        }
-        if (answer) {
-            handleAddUserToRoom(currRoom.getName());
         }
         try {
             outQueue.put(Packet.ackCreateRoom(answer));
@@ -358,14 +333,6 @@ public class Handler implements Runnable {
         } catch (InterruptedException exception) {
             exception.printStackTrace();
         }
-        //roomsNames.add(String.valueOf(ThreadLocalRandom.current().nextInt(1, 1000 + 1)));
-//        for (Handler handler: this.currRoom.getUsers()) {
-//            try {
-//                handler.outQueue.put(Packet.createRoomsNames(roomsNames));
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//        }
     }
 
     private void handleSendMessage(String messageToSend) {

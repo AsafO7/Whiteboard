@@ -12,8 +12,6 @@ public class Packet implements Serializable {
     private Object obj;
 
     public enum Type { // List of events
-        SET_USERNAME,
-        ACK_SET_USERNAME,
         GET_ROOMS,
         ROOMS_NAMES,
         CREATE_ROOM,
@@ -60,10 +58,6 @@ public class Packet implements Serializable {
     public static Packet createRequestUndo() { return new Packet(null, Type.REQUEST_UNDO); }
 
     public static Packet createRequestRedo() { return new Packet(null, Type.REQUEST_REDO); }
-
-    public static Packet setUsername(String userName) { return new Packet(userName, Type.SET_USERNAME); }
-
-    public static Packet ackUsername(String userName) { return new Packet(userName, Type.ACK_SET_USERNAME); }
 
     public static Packet requestUsername(String userName) { return new Packet(userName, Type.REQUEST_USERNAME); }
 
@@ -120,18 +114,19 @@ public class Packet implements Serializable {
 
     /******************************** Type errors handling ********************************/
 
-    public String getUsername() throws TypeError {
-        if (type != Type.SET_USERNAME && type != Type.ACK_SET_USERNAME && type != Type.REQUEST_USERNAME) {
-            throw new TypeError(Type.SET_USERNAME, type);
-        }
-        return (String) obj;
-    }
 
     public boolean getAckUsername() throws TypeError {
         if(type != Type.ACK_USERNAME) {
             throw new TypeError(Type.ACK_USERNAME, type);
         }
         return (boolean) obj;
+    }
+
+    public String getUsername() throws TypeError {
+        if(type != Type.REQUEST_USERNAME) {
+            throw new TypeError(Type.REQUEST_USERNAME, type);
+        }
+        return (String) obj;
     }
 
     public List<String> getRoomsNames() throws TypeError {

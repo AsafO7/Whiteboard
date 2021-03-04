@@ -16,11 +16,6 @@ public class Server {
 
     private static List<Room> rooms = Collections.synchronizedList(new ArrayList<>());
 
-//    //    For the purpose of testing "Refresh Rooms" on the client:
-//    private static List<Room> rooms = Collections.synchronizedList(new ArrayList<Room>(Arrays.asList(
-//            new Room("rave"), new Room("asaf"), new Room("tamik")
-//    )));
-
     public static void main(String[] args) {
         ServerSocket srv = null;
         try {
