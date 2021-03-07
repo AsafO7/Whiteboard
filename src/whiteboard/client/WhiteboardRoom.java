@@ -137,7 +137,6 @@ public class WhiteboardRoom {
             /********************************** Building the left menu - online users list ********************************/
 
             // Online users in the room.
-            //leftMenu = new VBox();
             leftMenu.setMaxWidth(LEFT_MENU_WIDTH);
             leftMenu.setMinWidth(LEFT_MENU_WIDTH);
             leftMenu.setStyle(CssLayouts.cssLeftMenu + ";\n-fx-padding: 3 0 0 10;");
@@ -169,7 +168,6 @@ public class WhiteboardRoom {
                 if(e.getCode() == KeyCode.ENTER) {
                     // Case of empty message.
                     if(chatMsg.getText().trim().length() == 0) { return; }
-                    //TODO: Make it so the message won't slide off screen(in the text box).
                     Text msg = new Text(user.getText() + ": " + chatMsg.getText());
                     msg.setStyle(CssLayouts.cssChatText);
                     msg.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
@@ -289,8 +287,6 @@ public class WhiteboardRoom {
 
                 /* backToLobby button functionality. */
                 backToLobby.setOnAction(e -> {
-                    //if(isHost) { isHost = false; }
-                    //TODO: make the next user in users the host.
                     chatBox.getChildren().clear();
                     try {
                         outQueue.put(Packet.requestExitRoom());
@@ -311,6 +307,11 @@ public class WhiteboardRoom {
             /********************************** Choosing shapes event handler ********************************/
 
             canvas.setOnMousePressed(e -> {
+                try {
+                    outQueue.put(Packet.requestChangeUsername(user.getText() + " drawing..."));
+                } catch (InterruptedException exception) {
+                    exception.printStackTrace();
+                }
                 if(shapeChooser.getValue() == null) { return; }
 
                 TextInputDialog arcH = new TextInputDialog(), arcW = new TextInputDialog();
@@ -426,6 +427,11 @@ public class WhiteboardRoom {
             });
 
             canvas.setOnMouseReleased(e -> {
+                try {
+                    outQueue.put(Packet.requestChangeUsername(user.getText()));
+                } catch (InterruptedException exception) {
+                    exception.printStackTrace();
+                }
                 if (currDraw != null) {
                     myDraws.add(currDraw);
                     currDraw = null;
@@ -548,12 +554,6 @@ public class WhiteboardRoom {
         ObjectOutputStream os = new ObjectOutputStream(out);
         os.writeObject(obj);
         return out.toByteArray();
-    }
-
-    public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
-        ByteArrayInputStream in = new ByteArrayInputStream(data);
-        ObjectInputStream is = new ObjectInputStream(in);
-        return is.readObject();
     }
 
 }

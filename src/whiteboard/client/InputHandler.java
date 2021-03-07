@@ -24,22 +24,17 @@ import java.util.concurrent.BlockingQueue;
 
 public class InputHandler implements Runnable {
 
-    private static final int CHAT_MESSAGE_WRAPPING_WIDTH = 230;
+    private static final int CHAT_MESSAGE_WRAPPING_WIDTH = 230, USERNAME_TEXT_WRAPPING_WIDTH = 200;
     private final Board board;
     private final Stage stage;
     private Scene scene;
     private final Socket socket;
     private final VBox lobby;
     private BlockingQueue<Packet> outQueue;
-    //private Text user = new Text("AAA");
     public WhiteboardRoom myRoom = null;
     public String roomName = null;
     private List<String> roomsNames = new ArrayList<>();
-//    public Stage signIn = null;
     public String username = null;
-
-    private final String SAME_ROOM_NAME_TITLE = "Room already exists",
-            SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.";
 
     public InputHandler(Socket socket, Board board, VBox currentLobby, Stage stage, Scene scene, BlockingQueue<Packet> outQueue) {
         this.socket = socket;
@@ -138,14 +133,16 @@ public class InputHandler implements Runnable {
 
     private void updateUsersListGUI(List<String> users) {
         myRoom.getOnlineUsersPanel().getChildren().clear();
+        Text username;
         for (String user: users) {
-            myRoom.getOnlineUsersPanel().getChildren().add(new Text(user));
+            username = new Text(user);
+            username.setWrappingWidth(USERNAME_TEXT_WRAPPING_WIDTH);
+            myRoom.getOnlineUsersPanel().getChildren().add(username);
         }
     }
 
     private void addUserToGUI(String user) {
         myRoom.getOnlineUsersPanel().getChildren().add(new Text(user));
-        //myRoom.getOnlineUsers().add(new Text(user));
     }
 
     private void handleNewRoomTransfer() {
@@ -158,7 +155,6 @@ public class InputHandler implements Runnable {
 
     /* This method will update the UI with the lobby rooms. */
     private void handleRoomsList(List<String> roomsNames) {
-        //if(drawingRooms.isEmpty()) { return; }
         lobby.getChildren().clear();
         this.roomsNames.clear();
         VBox[] containers = new VBox[roomsNames.size()];
@@ -198,11 +194,11 @@ public class InputHandler implements Runnable {
         });
     }
 
+    /* This method displays the sent message in the chat window of the client. */
     private void handleReceivedMessage(String msg) {
         Text msgToReceive = new Text(msg);
         msgToReceive.setStyle(CssLayouts.cssChatText);
         msgToReceive.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
-        //System.out.println(currRoom);
         myRoom.getChatBox().getChildren().add(msgToReceive);
     }
 
@@ -224,7 +220,6 @@ public class InputHandler implements Runnable {
         for(int i = 0; i < drawings.size(); i++) {
             myRoom.myDraws.add(convertToMyDraw(drawings.get(i)));
         }
-        //myRoom.myDraws.addAll(drawingStack);
         myRoom.repaint();
     }
 

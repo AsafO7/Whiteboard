@@ -34,6 +34,7 @@ public class Packet implements Serializable {
         CLEAR_BOARD,
         REQUEST_USERNAME,
         ACK_USERNAME,
+        REQUEST_CHANGE_USERNAME,
     }
 
     public Packet(Object obj, Type type) {
@@ -60,6 +61,8 @@ public class Packet implements Serializable {
     public static Packet createRequestRedo() { return new Packet(null, Type.REQUEST_REDO); }
 
     public static Packet requestUsername(String userName) { return new Packet(userName, Type.REQUEST_USERNAME); }
+
+    public static Packet requestChangeUsername(String userName) { return new Packet(userName, Type.REQUEST_CHANGE_USERNAME); }
 
     public static Packet ackUsername(boolean answer) { return new Packet(answer, Type.ACK_USERNAME); }
 
@@ -123,7 +126,7 @@ public class Packet implements Serializable {
     }
 
     public String getUsername() throws TypeError {
-        if(type != Type.REQUEST_USERNAME) {
+        if(type != Type.REQUEST_USERNAME && type != Type.REQUEST_CHANGE_USERNAME) {
             throw new TypeError(Type.REQUEST_USERNAME, type);
         }
         return (String) obj;
@@ -170,13 +173,6 @@ public class Packet implements Serializable {
         }
         return (RoomNameAndDrawings) obj;
     }
-
-//    public String getUserToRemove() throws TypeError {
-//        if(type != Type.REQUEST_REMOVE_USER_FROM_GUI) {
-//            throw new TypeError(Type.REQUEST_REMOVE_USER_FROM_GUI, type);
-//        }
-//        return (String) obj;
-//    }
 
     public boolean getAckCreateRoom() throws TypeError {
         if(type != Type.ACK_CREATE_ROOM) {

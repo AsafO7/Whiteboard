@@ -1,3 +1,5 @@
+/* This class can contain any type of drawing and is used to contain a drawing that will be sent to the server. */
+
 package whiteboard.client;
 
 import javafx.scene.canvas.GraphicsContext;
@@ -12,10 +14,9 @@ public class CompleteDraw implements Serializable {
     private boolean fill = false;
     private int arcW, arcH;
     private ArrayList<Double> xPoints, yPoints;
-    //private GraphicsContext gc;
 
     public CompleteDraw(String color, double thickness, double x1, double y1, double x2, double y2, boolean fill, int arcW, int arcH,
-                        ArrayList<Double> xPoints, ArrayList<Double> yPoints, /*GraphicsContext gc,*/ String shape, String text) {
+                        ArrayList<Double> xPoints, ArrayList<Double> yPoints, String shape, String text) {
         this.color = color;
         this.thickness = thickness;
         this.x1 = x1;
@@ -27,7 +28,6 @@ public class CompleteDraw implements Serializable {
         this.arcH = arcH;
         this.xPoints = xPoints;
         this.yPoints = yPoints;
-        //this.gc = gc;
         this.shape = shape;
         this.text = text;
     }
@@ -43,10 +43,6 @@ public class CompleteDraw implements Serializable {
     public String getShape() {
         return shape;
     }
-
-//    public GraphicsContext getGc() {
-//        return gc;
-//    }
 
     public String getColor() {
         return color;

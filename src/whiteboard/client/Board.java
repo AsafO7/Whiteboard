@@ -1,3 +1,5 @@
+/* This class represents the lobby scene, the screen the client will see when opening the program. */
+
 package whiteboard.client;
 
 import javafx.application.Application;
@@ -17,15 +19,10 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import whiteboard.Connection;
 import whiteboard.Packet;
-import whiteboard.server.Handler;
-import whiteboard.server.Server;
 
-import javax.sql.rowset.JdbcRowSet;
-import javax.sql.rowset.RowSetProvider;
 import java.awt.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.net.Socket;
 import java.sql.*;
@@ -55,7 +52,7 @@ public class Board extends Application{
 
     final String EMTER_LOBBY_TEXT = "You must be logged in before entering a lobby", CREATE_ROOM_TEXT = "You must be logged in before creating a room",
             EMPTY_USERNAME_TEXT = "Username can't be blank.", USERNAME_EXISTS = "This username has been chosen already.",
-            programExplained = "This program is a whiteboard.\nThe whiteboard is a canvas where multiple users can draw on at the same time.\n" +
+            PROGRAM_EXPLAINATION = "This program is a whiteboard.\nThe whiteboard is a canvas where multiple users can draw on at the same time.\n" +
                     "First the user logs in\\registers in the database of the program, and then chooses to enter an existing lobby or create " +
                     "one of their own.\nFrom there the user enters the whiteboard where they can draw freely on the board or add shapes and text" +
                     " to it!.\nA user is also able to see other online users in the same lobby at the left side of the program.",
@@ -72,12 +69,9 @@ public class Board extends Application{
     public boolean isLoggedIn = false;
     private Color color = Color.BLACK; // Default color is black.
 
-    // If the user isn't the host don't clear the board.
-    private final boolean isHost = false;
-
     private HBox bottomM = new HBox();
 
-    private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900, DEFAULT_ARC_VALUE = 10;
+    private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900, DEFAULT_ARC_VALUE = 10, TEXT_WRAPPING_WIDTH = 200;
 
     public static final String DATABASE_URL = "jdbc:sqlite:saved_drawing.db";
 
@@ -87,10 +81,10 @@ public class Board extends Application{
     public static void main(String[] args) { launch(args); }
 
     @Override
-    public void start(Stage stage) throws IOException /* throws Exception */ {
+    public void start(Stage stage) throws IOException {
 
         final int GRID_MENU_SPACING = 10, LEFT_MENU_WIDTH = 200, RIGHT_MENU_WIDTH = 300, TOP_MENU_HEIGHT = 60,
-                TOOLBAR_HEIGHT = 60, TEXT_WRAPPING_WIDTH = 125, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
+                TOOLBAR_HEIGHT = 60, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
                 DRAWING_TEXT_DIALOG_WINDOW_HEIGHT = 200, CHAT_MESSAGE_WRAPPING_WIDTH = 230, EXPLAIN_TEXT_WRAPPING_WIDTH = 280,
                 ROOM_SPACING = 20, BOTTOM_MENU_LOBBY_LEFT = 420, BOTTOM_MENU_LOBBY_SPACING = 75, LOGIN_WINDOW_WIDTH = 250, LOGIN_WINDOW_HEIGHT = 120,
                 MIN_LINE_THICKNESS = 1, MAX_LINE_THICKNESS = 15, CREATE_ROOM_WINDOW_WIDTH = 200, CREATE_ROOM_WINDOW_HEIGHT = 90,
@@ -127,7 +121,7 @@ public class Board extends Application{
 
         /******************************** Right menu - info ********************************/
 
-        Text toKnow = new Text(programExplained);
+        Text toKnow = new Text(PROGRAM_EXPLAINATION);
         toKnow.setStyle(CssLayouts.cssExplanationText);
         toKnow.setWrappingWidth(EXPLAIN_TEXT_WRAPPING_WIDTH);
         VBox info = new VBox();
@@ -140,7 +134,7 @@ public class Board extends Application{
 
         BorderPane mainLobby = new BorderPane();
         ScrollPane lobbyCenter = new ScrollPane();
-        VBox lobbies = new VBox(), empty1 = new VBox(), empty2 = new VBox();
+        VBox lobbies = new VBox();
 //        empty1.getChildren().add(new Text("AAAAA"));
 //        empty2.getChildren().add(new Text("BBBB"));
 //        empty1.setStyle(CssLayouts.cssBorder);
@@ -165,6 +159,7 @@ public class Board extends Application{
 
         /******************************* Load drawing button event handler ******************************/
 
+        /* Loads the last saved drawings from this client's database. */
         loadDrawing.setOnAction(e -> {
 
             if(isLoggedIn) {
@@ -185,6 +180,7 @@ public class Board extends Application{
                 dialog.setScene(dialogScene);
                 dialog.show();
 
+                /* Checks for valid room name. */
                 AtomicBoolean roomNameExists = new AtomicBoolean(false);
                 btn.setOnAction(eBtn -> {
                     if (roomNameTextBox.getText().length() == 0) {
@@ -386,6 +382,7 @@ public class Board extends Application{
             signIn.setScene(loginScene);
             signIn.show();
 
+            /* Checks for valid nickname. */
             confirm.setOnAction(eConfirm -> {
                 if(nickname.getText().trim().length() == 0) {
                     displayAlert("", EMPTY_USERNAME_TEXT);
@@ -433,7 +430,7 @@ public class Board extends Application{
         threadInputHandler.setDaemon(true);
         threadInputHandler.start();
 
-    /********************************** Client side ************************************/
+    /********************************** Server side ************************************/
 
         OutputHandler output = new OutputHandler(socket, outQueue);
         Thread threadOutputHandler = new Thread(output);
@@ -459,7 +456,6 @@ public class Board extends Application{
 
     /******************************** Functions ********************************/
 
-    // To prevent repeated code.
     private void setLayoutWidth(Pane p, int width) {
         if(p == null) { return; }
         p.setStyle(CssLayouts.cssBorder);
@@ -476,18 +472,21 @@ public class Board extends Application{
         alert.showAndWait();
     }
 
+    /* Used to read the drawing array from the database. */
     public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
         ByteArrayInputStream in = new ByteArrayInputStream(data);
         ObjectInputStream is = new ObjectInputStream(in);
         return is.readObject();
     }
 
+    /* Handles what the program will do after the client's name has been acknowldged or not. */
     public void handleAckUsername(boolean ack) {
         if(ack) {
             isLoggedIn = true;
             Text helloMsg = new Text("Hello " + input.username);
             //user = new Text(username);
             helloMsg.setStyle(CssLayouts.cssBottomLayoutText);
+            helloMsg.setWrappingWidth(TEXT_WRAPPING_WIDTH);
             bottomM.getChildren().add(helloMsg);
             login.setVisible(false);
 //            input.signIn.close();
@@ -498,7 +497,6 @@ public class Board extends Application{
         }
     }
 
-    //TODO: add painting to nametag when someone's drawing.
     //TODO: make the cursor look like a pen.
 }
 

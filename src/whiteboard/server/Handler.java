@@ -98,6 +98,10 @@ public class Handler implements Runnable {
                     case REQUEST_CLEAR_BOARD:
                         this.handleClearBoard();
                         break;
+                    case REQUEST_CHANGE_USERNAME:
+                        String userName = packet.getUsername();
+                        this.handleChangeUsername(userName);
+                        break;
                     default:
                         throw new Exception("Error: server received " + packet.getType() + " unexpected packet type");
                 }
@@ -124,6 +128,11 @@ public class Handler implements Runnable {
                 allUsers.remove(this);
             }
         }
+    }
+
+    private void handleChangeUsername(String userName) {
+        this.username = userName;
+        updateUsersListGUI(true);
     }
 
     private void handleRequestUsername(String username) {
