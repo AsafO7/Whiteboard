@@ -1,0 +1,9 @@
+.root {
+    "-fx-background-color: red"
+}
+.lobby {
+        "-fx-border-color: black;\n" +
+        "-fx-border-width: 3;\n" +
+        "-fx-border-radius: 3;\n" +
+        "-fx-background-color: red"
+}

@@ -1,5 +1,6 @@
 package whiteboard.server;
 
+import whiteboard.OutputHandler;
 import whiteboard.Packet;
 import whiteboard.client.CompleteDraw;
 
@@ -10,10 +11,10 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class Handler implements Runnable {
+public class Handler implements Runnable, IHandler {
 
     private final Socket socket;
-    private final BlockingQueue<Packet> outQueue = new LinkedBlockingQueue<Packet>();
+    private final BlockingQueue<Runnable> outQueue = new LinkedBlockingQueue<Runnable>();
     private final List<Room> rooms;
     private Thread OutputHandlerThread;
     private OutputHandler outputHandler;
@@ -33,7 +34,7 @@ public class Handler implements Runnable {
         try {
             in = new ObjectInputStream(socket.getInputStream());
 
-            outputHandler = new OutputHandler(socket, outQueue);
+            outputHandler = new OutputHandler(outQueue);
             OutputHandlerThread = new Thread(outputHandler);
             OutputHandlerThread.start();
 
@@ -260,7 +261,7 @@ public class Handler implements Runnable {
                 for (Handler handler : currRoom.getUsers()) {
                     if (updateSelf || handler != this) {
                         try {
-                            handler.outQueue.put(Packet.updateUsersListGUI(users));
+                            handler.outQueue.put(() -> stub.handleUpdateUsersList(users));
                         } catch (InterruptedException exception) {
                             exception.printStackTrace();
                         }
@@ -337,11 +338,12 @@ public class Handler implements Runnable {
                 System.out.println(room.getName());
             }
         }
-        try {
-            outQueue.put(Packet.createRoomsNames(roomsNames));
-        } catch (InterruptedException exception) {
-            exception.printStackTrace();
-        }
+        //TODO: Uncomment
+//        try {
+//            outQueue.put(stub.handleRoomsList(roomsNames));
+//        } catch (InterruptedException exception) {
+//            exception.printStackTrace();
+//        }
     }
 
     private void handleSendMessage(String messageToSend) {

@@ -18,6 +18,7 @@ import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import whiteboard.Connection;
+import whiteboard.OutputHandler;
 import whiteboard.Packet;
 
 import java.awt.*;
@@ -286,11 +287,12 @@ public class Board extends Application{
         /******************************* Refresh rooms button event handler ******************************/
 
         refreshRooms.setOnAction(e -> {
-            try {
-                outQueue.put(Packet.requestRoomsNames());
-            } catch (InterruptedException interruptedException) {
-                interruptedException.printStackTrace();
-            }
+            //TODO: Uncomment
+//            try {
+//                outQueue.put(() -> stub.handleRequestRoomsNames());
+//            } catch (InterruptedException interruptedException) {
+//                interruptedException.printStackTrace();
+//            }
         });
 
         /******************************** Create room button event handler *******************************/

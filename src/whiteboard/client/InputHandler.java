@@ -155,20 +155,22 @@ public class InputHandler implements Runnable {
 
     /* This method will update the UI with the lobby rooms. */
     private void handleRoomsList(List<String> roomsNames) {
-        lobby.getChildren().clear();
-        this.roomsNames.clear();
-        VBox[] containers = new VBox[roomsNames.size()];
-        /* Organizing the rooms in the layout. */
-        for(int i = 0; i < roomsNames.size(); i++) {
-            this.roomsNames.add(roomsNames.get(i));
-            containers[i] = new VBox();
-            containers[i].setAlignment(Pos.CENTER);
-            containers[i].getChildren().add(new Label(roomsNames.get(i)));
-            lobby.getChildren().add(containers[i]);
-            lobby.getChildren().get(i).setStyle(CssLayouts.cssLobbiesStyle);
+        Platform.runLater(() -> {
+            lobby.getChildren().clear();
+            this.roomsNames.clear();
+            VBox[] containers = new VBox[roomsNames.size()];
+            /* Organizing the rooms in the layout. */
+            for(int i = 0; i < roomsNames.size(); i++) {
+                this.roomsNames.add(roomsNames.get(i));
+                containers[i] = new VBox();
+                containers[i].setAlignment(Pos.CENTER);
+                containers[i].getChildren().add(new Label(roomsNames.get(i)));
+                lobby.getChildren().add(containers[i]);
+                lobby.getChildren().get(i).setStyle(CssLayouts.cssLobbiesStyle);
 
-            addEventListener(lobby, i, roomsNames);
-        }
+                addEventListener(lobby, i, roomsNames);
+            }
+        });
     }
 
     //in this function the user will receive all the drawings currently in the room.

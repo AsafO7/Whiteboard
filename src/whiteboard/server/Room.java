@@ -1,3 +1,5 @@
+/* This class represents a room in the lobby. */
+
 package whiteboard.server;
 
 import whiteboard.client.CompleteDraw;

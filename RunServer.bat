@@ -1,0 +1,1 @@
+java -jar "jars/Whiteboard-Server.jar"

@@ -23,6 +23,8 @@ public class Server {
             System.out.println("Server started");
 
             while(true) { // Keep waiting for a new client.
+                //TODO: Use socket communication with the client to tell him about a new RMI registry server that we opened for him,
+                // then close the socket, and then move on with RMI based communication.
                 Socket socket = srv.accept();
                 System.out.println("Session with " + socket.toString() + "Started");
                 try {
