@@ -17,14 +17,21 @@ import java.net.Socket;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class OutputHandler implements Runnable {
 
-    private BlockingQueue<Runnable> outQueue;
+    private BlockingQueue<Runnable> outQueue = new LinkedBlockingQueue<Runnable>();
 
-    public OutputHandler(BlockingQueue<Runnable> outQueue) {
-        this.outQueue = outQueue;
+    public void put(Runnable runnable) {
+        try {
+            outQueue.put(runnable);
+        } catch (InterruptedException exception) {
+            exception.printStackTrace();
+            System.exit(-1);
+        }
     }
+
     @Override
     public void run() {
         try {
@@ -34,6 +41,7 @@ public class OutputHandler implements Runnable {
             }
         } catch (InterruptedException exception) {
             exception.printStackTrace();
+            System.exit(-1);
         }
     }
 }

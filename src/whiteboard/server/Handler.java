@@ -1,134 +1,44 @@
 package whiteboard.server;
 
+import whiteboard.CreateRMIRegistry;
 import whiteboard.OutputHandler;
 import whiteboard.Packet;
 import whiteboard.client.CompleteDraw;
 
 import java.io.*;
 import java.net.Socket;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class Handler implements Runnable, IHandler {
+public class Handler implements IServerHandler {
 
-    private final Socket socket;
-    private final BlockingQueue<Runnable> outQueue = new LinkedBlockingQueue<Runnable>();
+    private final OutputHandler outQueue = new OutputHandler();
+    private final Thread threadOutQueue;
     private final List<Room> rooms;
-    private Thread OutputHandlerThread;
-    private OutputHandler outputHandler;
     private Room currRoom;
     private String username = null;
-    private List<Handler> allUsers;
+    private final List<Handler> allUsers;
 
-    public Handler(Socket socket, List<Room> rooms, List<Handler> allUsers) {
-        this.socket = socket;
+    public Handler(List<Room> rooms, List<Handler> allUsers) {
         this.rooms = rooms;
         this.allUsers = allUsers;
+        threadOutQueue = new Thread(outQueue);
+        threadOutQueue.start();
     }
 
-    @Override
-    public void run() {
-        ObjectInputStream in = null;
-        try {
-            in = new ObjectInputStream(socket.getInputStream());
+    // The client connects to the server with socket, then he connects to the RMI, and then he calls this method,
+    //  so that the server also connects to the client's RMI server.
+    public void setIClientHandler(IClientHandler stub) {
+        CreateRMIRegistry createRMIRegistry = new CreateRMIRegistry();
 
-            outputHandler = new OutputHandler(outQueue);
-            OutputHandlerThread = new Thread(outputHandler);
-            OutputHandlerThread.start();
-
-            while (true) {
-                Packet packet = null;
-                try {
-                    packet = (Packet) in.readObject();
-                }
-                catch (IOException e) {
-                    if (currRoom != null) {
-                        handleRequestExitRoom();
-                    }
-                    break;
-                }
-                Packet.Type type = packet.getType();
-                switch (type) {
-                    case REQUEST_USERNAME:
-                        String username = packet.getUsername();
-                        this.handleRequestUsername(username);
-                        break;
-                    case GET_ROOMS:
-                        this.handleGetRooms();
-                        break;
-                    case CREATE_ROOM:
-                        this.handleCreateRoom(packet.getRoomName());
-                        break;
-                    case CREATE_ROOM_WITH_DRAWINGS:
-                        Packet.RoomNameAndDrawings roomNameAndDrawings = packet.getRoomNameAndDrawings();
-                        String name = roomNameAndDrawings.roomName;
-                        List<CompleteDraw> drawings = roomNameAndDrawings.drawings;
-                        this.handleCreateRoomWithDrawings(name, drawings);
-                        break;
-                    case REQUEST_JOIN_ROOM:
-                        String roomName = packet.getRoomName();
-                        this.handleAddUserToRoom(roomName);
-                        break;
-                    case SEND_MSG:
-                        this.handleSendMessage(packet.getMessageToSend());
-                        break;
-                    case REQUEST_EXIT_ROOM:
-                        this.handleRequestExitRoom();
-                        break;
-                    case SEND_NEW_DRAWING:
-                        CompleteDraw drawing = packet.getDrawing();
-                        this.handleAddNewDrawing(drawing);
-                        break;
-                    case REQUEST_CURRENT_DRAWINGS:
-                        this.handleRequestCurrDrawings();
-                        break;
-                    case REQUEST_USERS_LIST_GUI:
-                        this.updateUsersListGUI(true);
-                        break;
-                    case REQUEST_UNDO:
-                        this.undoDrawing();
-                        break;
-                    case REQUEST_REDO:
-                        this.redoDrawing();
-                        break;
-//                    case REQUEST_SET_HOST:
-//                        this.handleSetHost();
-//                        break;
-                    case REQUEST_CLEAR_BOARD:
-                        this.handleClearBoard();
-                        break;
-                    case REQUEST_CHANGE_USERNAME:
-                        String userName = packet.getUsername();
-                        this.handleChangeUsername(userName);
-                        break;
-                    default:
-                        throw new Exception("Error: server received " + packet.getType() + " unexpected packet type");
-                }
-            }
-        }catch (Exception e) {
-            e.printStackTrace();
-        }
-        finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            if (socket != null) {
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            synchronized (allUsers) {
-                allUsers.remove(this);
-            }
-        }
+        Registry registry = LocateRegistry.getRegistry(host, 2000);
+        IServerHandler stub = (IServerHandler) registry.lookup("IServerHandler");
+        String response = stub.sayHello();
+        System.out.println("response: " + response);
     }
 
     private void handleChangeUsername(String userName) {
@@ -250,6 +160,7 @@ public class Handler implements Runnable, IHandler {
         }
     }
 
+    // When requested by the client, should be called with 'true'
     private void updateUsersListGUI(boolean updateSelf) {
         if (currRoom != null) {
             synchronized (currRoom.getUsers()) {

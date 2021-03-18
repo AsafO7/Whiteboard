@@ -1,12 +1,16 @@
 package whiteboard.server;
 
 import whiteboard.Connection;
+import whiteboard.CreateRMIRegistry;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -28,11 +32,27 @@ public class Server {
                 Socket socket = srv.accept();
                 System.out.println("Session with " + socket.toString() + "Started");
                 try {
-                    Handler handler = new Handler(socket, rooms, handlers);
-                    Thread handlerThread = new Thread(handler);
-                    handlerThread.start();
+                    Handler handler = new Handler(rooms, handlers);
                     handlers.add(handler);
-                    handlerThreads.add(handlerThread);
+
+                    // Export the handler for RMI
+                    IServerHandler stub = (IServerHandler) UnicastRemoteObject.exportObject(handler, 0);
+
+                    // Creates a new RMI registry with a random port
+                    CreateRMIRegistry createRMIRegistry = new CreateRMIRegistry();
+                    int port = createRMIRegistry.getPort();
+                    Registry registry = createRMIRegistry.getRegistry();
+
+                    // Register the handler's stub in the RIM's registry
+                    registry.bind("IServerHandler", stub);
+
+                    // Send the port to the client
+                    DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+                    out.writeInt(port);
+                    DataInputStream in = new DataInputStream(socket.getInputStream());
+                    try {
+                        in.readBoolean();
+                    } catch (Exception e) {}
                 }
                 catch (Exception e) {
                     e.printStackTrace();
