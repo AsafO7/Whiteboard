@@ -12,13 +12,12 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import whiteboard.Packet;
+import whiteboard.server.IServerHandler;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 //TODO: for EOF error check if you put break; in the switch.
 
@@ -27,33 +26,39 @@ public class InputHandler implements Runnable {
     private static final int CHAT_MESSAGE_WRAPPING_WIDTH = 230, USERNAME_TEXT_WRAPPING_WIDTH = 200;
     private final Board board;
     private final Stage stage;
+    private final IServerHandler stub;
     private Scene scene;
-    private final Socket socket;
+    private BlockingQueue<Packet> inQueue = new LinkedBlockingQueue<>();
     private final VBox lobby;
-    private BlockingQueue<Packet> outQueue;
+    private RMIHandler rmiQueue;
     public WhiteboardRoom myRoom = null;
     public String roomName = null;
     private List<String> roomsNames = new ArrayList<>();
     public String username = null;
 
-    public InputHandler(Socket socket, Board board, VBox currentLobby, Stage stage, Scene scene, BlockingQueue<Packet> outQueue) {
-        this.socket = socket;
+    public InputHandler(Board board, VBox currentLobby, Stage stage, Scene scene, RMIHandler rmiQueue, IServerHandler stub) {
         this.board = board;
         this.lobby = currentLobby; // the GUI container of the rooms.
         this.stage = stage;
         this.scene = scene; // lobby scene.
-        this.outQueue = outQueue;
+        this.rmiQueue = rmiQueue;
+        this.stub = stub;
     }
+
+    public void put(Packet packet) {
+        try {
+            inQueue.put(packet);
+        } catch (InterruptedException exception) {
+            exception.printStackTrace();
+            System.exit(-1);
+        }
+    }
+
     @Override
     public void run() {
-        /* Receive input from the server here. */
-        ObjectInputStream in = null;
-
         try {
-            in = new ObjectInputStream(socket.getInputStream());
-
             while (true) {
-                Packet packet = (Packet) in.readObject();
+                Packet packet = inQueue.take();
                 boolean ack;
 
                 switch (packet.getType()) {
@@ -90,7 +95,9 @@ public class InputHandler implements Runnable {
                             Platform.runLater(this::handleNewRoomTransfer);
                         }
                         else {
-                            outQueue.put(Packet.requestRoomsNames());
+                            rmiQueue.put(() -> {
+                                return stub.handleGetRooms();
+                            });
                             //TODO: find a way to display alert for not being able to join the room (or don't, I don't give a fuck)
                         }
                         break;
@@ -98,15 +105,6 @@ public class InputHandler implements Runnable {
             }
         }
         catch (Exception e) { e.printStackTrace(); }
-        finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
     }
 
 //    private void handleAckUsername(boolean ack) {
@@ -147,8 +145,8 @@ public class InputHandler implements Runnable {
 
     private void handleNewRoomTransfer() {
         String roomName = this.roomName;
-        myRoom = new WhiteboardRoom(this.username, this);
-        stage.setScene(myRoom.showBoard(stage,new Text(username),scene, outQueue));
+        myRoom = new WhiteboardRoom(this.username, this, rmiQueue, stub);
+        stage.setScene(myRoom.showBoard(stage,new Text(username), scene));
     }
 
     //different users don't have the same rooms list.
@@ -178,11 +176,9 @@ public class InputHandler implements Runnable {
     private void addEventListener(VBox lobby, int i, List<String> roomsNames) {
         lobby.getChildren().get(i).setOnMouseClicked(e -> {
             if(board.isLoggedIn) {
-                try {
-                    outQueue.put(Packet.requestJoinRoom(roomsNames.get(i)));
-                } catch (InterruptedException exception) {
-                    exception.printStackTrace();
-                }
+                rmiQueue.put(() -> {
+                    return stub.handleAddUserToRoom(roomsNames.get(i));
+                });
             }
             else {
                 board.displayAlert("", board.EMTER_LOBBY_TEXT);

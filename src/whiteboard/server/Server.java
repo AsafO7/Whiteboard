@@ -43,7 +43,7 @@ public class Server {
                     int port = createRMIRegistry.getPort();
                     Registry registry = createRMIRegistry.getRegistry();
 
-                    // Register the handler's stub in the RIM's registry
+                    // Register the handler's stub in the RMI's registry
                     registry.bind("IServerHandler", stub);
 
                     // Send the port to the client
@@ -56,6 +56,8 @@ public class Server {
                 }
                 catch (Exception e) {
                     e.printStackTrace();
+                }
+                finally {
                     if (socket != null) socket.close();
                 }
             }

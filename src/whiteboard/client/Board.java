@@ -18,19 +18,17 @@ import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import whiteboard.Connection;
-import whiteboard.OutputHandler;
 import whiteboard.Packet;
+import whiteboard.server.IServerHandler;
 
 import java.awt.*;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.net.Socket;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.sql.*;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Board extends Application{
@@ -48,6 +46,7 @@ public class Board extends Application{
     private ColorPicker colorChooser;
 
     private InputHandler input;
+    private RMIHandler rmiQueue;
 
     private Text topM = new Text("Welcome to Whiteboard! Draw your minds out!");
 
@@ -77,7 +76,7 @@ public class Board extends Application{
     public static final String DATABASE_URL = "jdbc:sqlite:saved_drawing.db";
 
     private Socket socket;
-    private BlockingQueue<Packet> outQueue = new LinkedBlockingQueue<Packet>();
+    private IServerHandler stub;
 
     public static void main(String[] args) { launch(args); }
 
@@ -233,11 +232,9 @@ public class Board extends Application{
                             byte[] arr = resultSet.getBytes("DRAWING");
 
                             completeDraws = (List<CompleteDraw>) deserialize(arr);
-                            try {
-                                outQueue.put(Packet.createRoomWithDrawings(input.getRoomName(), completeDraws));
-                            } catch (InterruptedException exception) {
-                                exception.printStackTrace();
-                            }
+                            rmiQueue.put(() -> {
+                                return stub.handleCreateRoomWithDrawings(input.getRoomName(), completeDraws);
+                            });
 
                         } catch (SQLException | IOException | ClassNotFoundException sqlException) {
                             sqlException.printStackTrace();
@@ -287,12 +284,9 @@ public class Board extends Application{
         /******************************* Refresh rooms button event handler ******************************/
 
         refreshRooms.setOnAction(e -> {
-            //TODO: Uncomment
-//            try {
-//                outQueue.put(() -> stub.handleRequestRoomsNames());
-//            } catch (InterruptedException interruptedException) {
-//                interruptedException.printStackTrace();
-//            }
+            rmiQueue.put(() -> {
+                return stub.handleGetRooms();
+            });
         });
 
         /******************************** Create room button event handler *******************************/
@@ -341,12 +335,10 @@ public class Board extends Application{
                         if (roomNameExists) {
                             displayAlert(SAME_ROOM_NAME_TITLE, SAME_ROOM_NAME_MSG);
                         } else {
-                            try {
-                                input.setRoomName(roomName.getText());
-                                outQueue.put(Packet.createRoom(roomName.getText()));
-                            } catch (InterruptedException interruptedException) {
-                                interruptedException.printStackTrace();
-                            }
+                            input.setRoomName(roomName.getText());
+                            rmiQueue.put(() -> {
+                                return stub.handleCreateRoom(roomName.getText());
+                            });
                         }
                     }
                     dialog.close();
@@ -395,11 +387,9 @@ public class Board extends Application{
                 else {
                     input.username = nickname.getText().trim();
                     signIn.close();
-                    try {
-                        outQueue.put(Packet.requestUsername(input.username));
-                    } catch (InterruptedException exception) {
-                        exception.printStackTrace();
-                    }
+                    rmiQueue.put(() -> {
+                        return stub.handleRequestUsername(input.username);
+                    });
                 }
             });
         });
@@ -419,25 +409,47 @@ public class Board extends Application{
 
     /********************************** Setting up socket ************************************/
         try {
+            //TODO: Change to RMI communication (define the 'stub')
             socket = new Socket(Connection.DOMAIN, Connection.PORT);
+
+            int rmiRegistryPort = 0;
+            DataInputStream in = new DataInputStream(socket.getInputStream());
+            try {
+                rmiRegistryPort = in.readInt();
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(-1);
+            }
+            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+            out.writeBoolean(true);
+            in.close();
+            out.close();
+            socket.close();
+
+            Registry registry = LocateRegistry.getRegistry(Connection.DOMAIN, rmiRegistryPort);
+            this.stub = (IServerHandler) registry.lookup("IServerHandler");
         }
         catch (Exception e) {
             e.printStackTrace();
         }
 
-    /********************************** Client side ************************************/
+        /********************************** Server side ************************************/
 
-        input = new InputHandler(socket, this, lobbies, stage, lobby, outQueue);
+        rmiQueue = new RMIHandler();
+        Thread threadOutputHandler = new Thread(rmiQueue);
+        threadOutputHandler.setDaemon(true);
+        threadOutputHandler.start();
+
+        /********************************** Client side ************************************/
+
+        input = new InputHandler(this, lobbies, stage, lobby, rmiQueue, stub);
         Thread threadInputHandler = new Thread(input);
         threadInputHandler.setDaemon(true);
         threadInputHandler.start();
 
-    /********************************** Server side ************************************/
+        // Set the input handler inside the output handler
+        rmiQueue.setInputHandler(input);
 
-        OutputHandler output = new OutputHandler(socket, outQueue);
-        Thread threadOutputHandler = new Thread(output);
-        threadOutputHandler.setDaemon(true);
-        threadOutputHandler.start();
 
     /******************************** Setting the stage ********************************/
 
@@ -448,11 +460,9 @@ public class Board extends Application{
         stage.setMinWidth(stage.getWidth());
         stage.setMinHeight(stage.getHeight());
 
-        try {
-            outQueue.put(Packet.requestRoomsNames());
-        } catch (InterruptedException interruptedException) {
-            interruptedException.printStackTrace();
-        }
+        rmiQueue.put(() -> {
+            return stub.handleGetRooms();
+        });
     }
 
 

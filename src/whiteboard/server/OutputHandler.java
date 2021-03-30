@@ -1,6 +1,6 @@
 /* This class takes care of outputs the user receives from the server. */
 
-package whiteboard;
+package whiteboard.server;
 
 import javafx.application.Platform;
 import javafx.scene.layout.VBox;
@@ -9,6 +9,7 @@ import jdk.nashorn.internal.ir.Block;
 import whiteboard.Connection;
 import whiteboard.Packet;
 import whiteboard.SyncQueue;
+import whiteboard.client.InputHandler;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;

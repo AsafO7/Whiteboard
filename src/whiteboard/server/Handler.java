@@ -1,18 +1,10 @@
 package whiteboard.server;
 
-import whiteboard.CreateRMIRegistry;
-import whiteboard.OutputHandler;
 import whiteboard.Packet;
 import whiteboard.client.CompleteDraw;
 
-import java.io.*;
-import java.net.Socket;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 public class Handler implements IServerHandler {
 
@@ -30,23 +22,12 @@ public class Handler implements IServerHandler {
         threadOutQueue.start();
     }
 
-    // The client connects to the server with socket, then he connects to the RMI, and then he calls this method,
-    //  so that the server also connects to the client's RMI server.
-    public void setIClientHandler(IClientHandler stub) {
-        CreateRMIRegistry createRMIRegistry = new CreateRMIRegistry();
-
-        Registry registry = LocateRegistry.getRegistry(host, 2000);
-        IServerHandler stub = (IServerHandler) registry.lookup("IServerHandler");
-        String response = stub.sayHello();
-        System.out.println("response: " + response);
-    }
-
     private void handleChangeUsername(String userName) {
         this.username = userName;
         updateUsersListGUI(true);
     }
 
-    private void handleRequestUsername(String username) {
+    public Packet handleRequestUsername(String username) {
         boolean ack = true;
         synchronized (allUsers) {
 //            if (allUsers.isEmpty()) {
@@ -65,11 +46,7 @@ public class Handler implements IServerHandler {
             // Add the user to allUsers
             if (ack) { this.username = username; }
         }
-        try {
-            outQueue.put(Packet.ackUsername(ack));
-        } catch (InterruptedException exception) {
-            exception.printStackTrace();
-        }
+        return Packet.ackUsername(ack);
     }
 
     private void handleClearBoard() {
@@ -143,7 +120,7 @@ public class Handler implements IServerHandler {
         this.currRoom = null;
     }
 
-    private void handleAddUserToRoom(String roomName) {
+    public Packet handleAddUserToRoom(String roomName) {
         synchronized (rooms) {
             for (Room room : rooms) {
                 if (room.getName().equals(roomName)) {
@@ -153,11 +130,11 @@ public class Handler implements IServerHandler {
         if (currRoom != null) {
             updateUsersListGUI(false);
         }
-        try {
-            outQueue.put(Packet.ackJoinRoom(currRoom != null));
-        } catch (InterruptedException exception) {
-            exception.printStackTrace();
-        }
+        return Packet.ackJoinRoom(currRoom != null);
+    }
+
+    public Packet handleUpdateUsersListGUI() {
+        updateUsersListGUI(true);
     }
 
     // When requested by the client, should be called with 'true'
@@ -182,7 +159,7 @@ public class Handler implements IServerHandler {
         }
     }
 
-    private void handleCreateRoomWithDrawings(String name, List<CompleteDraw> drawings) {
+    public Packet handleCreateRoomWithDrawings(String name, List<CompleteDraw> drawings) {
         if(currRoom != null) { return; }
         boolean answer = true;
         if (username == null) { answer = false; }
@@ -205,14 +182,10 @@ public class Handler implements IServerHandler {
                 currRoom.getDrawings().addAll(drawings);
             }
         }
-        try {
-            outQueue.put(Packet.ackCreateRoom(answer));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        return Packet.ackCreateRoom(answer);
     }
 
-    private void handleCreateRoom(String name) {
+    public Packet handleCreateRoom(String name) {
         if(currRoom != null) { return; }
         boolean answer = true;
         if (username == null) { answer = false; }
@@ -234,14 +207,10 @@ public class Handler implements IServerHandler {
                 handleAddUserToRoom(currRoom.getName());
             }
         }
-        try {
-            outQueue.put(Packet.ackCreateRoom(answer));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        return Packet.ackCreateRoom(answer);
     }
 
-    private void handleGetRooms() {
+    public Packet handleGetRooms() {
         List<String> roomsNames = new ArrayList<String>();
         synchronized (rooms) {
             for (Room room : rooms) {
@@ -249,12 +218,7 @@ public class Handler implements IServerHandler {
                 System.out.println(room.getName());
             }
         }
-        //TODO: Uncomment
-//        try {
-//            outQueue.put(stub.handleRoomsList(roomsNames));
-//        } catch (InterruptedException exception) {
-//            exception.printStackTrace();
-//        }
+        return Packet.createRoomsNames(roomsNames);
     }
 
     private void handleSendMessage(String messageToSend) {
