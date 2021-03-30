@@ -2,7 +2,9 @@ package whiteboard.server;
 
 import whiteboard.Packet;
 import whiteboard.client.CompleteDraw;
+import whiteboard.client.IClientHandler;
 
+import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,6 +16,7 @@ public class Handler implements IServerHandler {
     private Room currRoom;
     private String username = null;
     private final List<Handler> allUsers;
+    private IClientHandler stub;
 
     public Handler(List<Room> rooms, List<Handler> allUsers) {
         this.rooms = rooms;
@@ -22,12 +25,17 @@ public class Handler implements IServerHandler {
         threadOutQueue.start();
     }
 
+    public void setClientStub(IClientHandler stub) {
+        assert stub != null;
+        this.stub = stub;
+    }
+
     private void handleChangeUsername(String userName) {
         this.username = userName;
         updateUsersListGUI(true);
     }
 
-    public Packet handleRequestUsername(String username) {
+    public void handleRequestUsername(String username) {
         boolean ack = true;
         synchronized (allUsers) {
 //            if (allUsers.isEmpty()) {
@@ -46,7 +54,14 @@ public class Handler implements IServerHandler {
             // Add the user to allUsers
             if (ack) { this.username = username; }
         }
-        return Packet.ackUsername(ack);
+        boolean finalAck = ack;
+        outQueue.put(() -> {
+            try {
+                this.stub.handleAckUsername(finalAck);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private void handleClearBoard() {
@@ -87,10 +102,13 @@ public class Handler implements IServerHandler {
                 }
                 for (Handler handler : room.getUsers()) {
                     if (handler != this) {
-                        try {
-                            handler.outQueue.put(Packet.updateUsersListGUI(users));
-                        } catch (InterruptedException exception) {
-                        }
+                        handler.outQueue.put(() -> {
+                            try {
+                                this.stub.updateUsersListGUI(users);
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                        });
                     }
                 }
             }
@@ -108,11 +126,14 @@ public class Handler implements IServerHandler {
     }
 
     private void handleRequestCurrDrawings() {
-        try {
-            outQueue.put(Packet.createAllDrawings(new ArrayList<>(currRoom.getDrawings())));
-        } catch (InterruptedException exception) {
-            exception.printStackTrace();
-        }
+        List<CompleteDraw> drawings = new ArrayList<>(currRoom.getDrawings());
+        outQueue.put(() -> {
+            try {
+                this.stub.updateDrawStack(drawings);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private void removeUserFromRoom() {
@@ -130,10 +151,17 @@ public class Handler implements IServerHandler {
         if (currRoom != null) {
             updateUsersListGUI(false);
         }
-        return Packet.ackJoinRoom(currRoom != null);
+        boolean ack = currRoom != null;
+        outQueue.put(() -> {
+            try {
+                this.stub.handleAckJoinRoom(ack);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
-    public Packet handleUpdateUsersListGUI() {
+    public void handleUpdateUsersListGUI() {
         updateUsersListGUI(true);
     }
 
@@ -148,18 +176,20 @@ public class Handler implements IServerHandler {
                 }
                 for (Handler handler : currRoom.getUsers()) {
                     if (updateSelf || handler != this) {
-                        try {
-                            handler.outQueue.put(() -> stub.handleUpdateUsersList(users));
-                        } catch (InterruptedException exception) {
-                            exception.printStackTrace();
-                        }
+                        handler.outQueue.put(() -> {
+                            try {
+                                handler.stub.updateUsersListGUI(users);
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                        });
                     }
                 }
             }
         }
     }
 
-    public Packet handleCreateRoomWithDrawings(String name, List<CompleteDraw> drawings) {
+    public void handleCreateRoomWithDrawings(String name, List<CompleteDraw> drawings) {
         if(currRoom != null) { return; }
         boolean answer = true;
         if (username == null) { answer = false; }
@@ -182,10 +212,17 @@ public class Handler implements IServerHandler {
                 currRoom.getDrawings().addAll(drawings);
             }
         }
-        return Packet.ackCreateRoom(answer);
+        boolean finalAnswer = answer;
+        outQueue.put(() -> {
+            try {
+                this.stub.handleAckCreateRoom(finalAnswer);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
-    public Packet handleCreateRoom(String name) {
+    public void handleCreateRoom(String name) {
         if(currRoom != null) { return; }
         boolean answer = true;
         if (username == null) { answer = false; }
@@ -207,10 +244,17 @@ public class Handler implements IServerHandler {
                 handleAddUserToRoom(currRoom.getName());
             }
         }
-        return Packet.ackCreateRoom(answer);
+        boolean finalAnswer = answer;
+        outQueue.put(() -> {
+            try {
+                this.stub.handleAckCreateRoom(finalAnswer);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
-    public Packet handleGetRooms() {
+    public void handleGetRooms() {
         List<String> roomsNames = new ArrayList<String>();
         synchronized (rooms) {
             for (Room room : rooms) {
@@ -218,19 +262,26 @@ public class Handler implements IServerHandler {
                 System.out.println(room.getName());
             }
         }
-        return Packet.createRoomsNames(roomsNames);
+        outQueue.put(() -> {
+            try {
+                this.stub.handleRoomsList(roomsNames);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private void handleSendMessage(String messageToSend) {
         synchronized (currRoom.getUsers()) {
             for (Handler handler : this.currRoom.getUsers()) {
                 if (handler != this) {
-                    try {
-                        handler.outQueue.put(Packet.receiveMessage(messageToSend));
-                    }
-                    catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                        handler.outQueue.put(() -> {
+                            try {
+                                this.stub.handleReceivedMessage(messageToSend);
+                            } catch (RemoteException e) {
+                                e.printStackTrace();
+                            }
+                        });
                 }
             }
         }
@@ -257,12 +308,14 @@ public class Handler implements IServerHandler {
     }
 
     private void sendAllDrawings() {
-        try {
-            this.outQueue.put(Packet.createAllDrawings(new ArrayList<>(currRoom.getDrawings())));
-        }
-        catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        List<CompleteDraw> drawings = new ArrayList<>(currRoom.getDrawings());
+        outQueue.put(() -> {
+            try {
+                this.stub.updateDrawStack(drawings);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     private void undoDrawing() {
@@ -302,5 +355,5 @@ public class Handler implements IServerHandler {
         }
     }
 
-    public String getUsername() { return this.username; }
+//    public String getUsername() { return this.username; }
 }

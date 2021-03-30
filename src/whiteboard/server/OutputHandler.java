@@ -38,7 +38,12 @@ public class OutputHandler implements Runnable {
         try {
             while (true) {
                 Runnable runnable = outQueue.take();
-                runnable.run();
+                try {
+                    runnable.run();
+                }
+                catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         } catch (InterruptedException exception) {
             exception.printStackTrace();

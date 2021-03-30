@@ -3,6 +3,7 @@
 package whiteboard.client;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -24,8 +25,10 @@ import whiteboard.server.IServerHandler;
 import java.awt.*;
 import java.io.*;
 import java.net.Socket;
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.sql.*;
 import java.util.*;
 import java.util.List;
@@ -426,6 +429,7 @@ public class Board extends Application{
             out.close();
             socket.close();
 
+            // Get the stub from the server
             Registry registry = LocateRegistry.getRegistry(Connection.DOMAIN, rmiRegistryPort);
             this.stub = (IServerHandler) registry.lookup("IServerHandler");
         }
@@ -443,13 +447,12 @@ public class Board extends Application{
         /********************************** Client side ************************************/
 
         input = new InputHandler(this, lobbies, stage, lobby, rmiQueue, stub);
-        Thread threadInputHandler = new Thread(input);
-        threadInputHandler.setDaemon(true);
-        threadInputHandler.start();
 
-        // Set the input handler inside the output handler
-        rmiQueue.setInputHandler(input);
-
+        // Send this stub to the server
+        {
+            IClientHandler clientStub = (IClientHandler) UnicastRemoteObject.exportObject(input, 0);
+            this.stub.setClientStub(clientStub);
+        }
 
     /******************************** Setting the stage ********************************/
 
@@ -461,7 +464,11 @@ public class Board extends Application{
         stage.setMinHeight(stage.getHeight());
 
         rmiQueue.put(() -> {
-            return stub.handleGetRooms();
+            try {
+                stub.handleGetRooms();
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
         });
     }
 
@@ -493,20 +500,21 @@ public class Board extends Application{
 
     /* Handles what the program will do after the client's name has been acknowldged or not. */
     public void handleAckUsername(boolean ack) {
-        if(ack) {
-            isLoggedIn = true;
-            Text helloMsg = new Text("Hello " + input.username);
-            //user = new Text(username);
-            helloMsg.setStyle(CssLayouts.cssBottomLayoutText);
-            helloMsg.setWrappingWidth(TEXT_WRAPPING_WIDTH);
-            bottomM.getChildren().add(helloMsg);
-            login.setVisible(false);
-//            input.signIn.close();
-        }
-        else {
-            input.username = null;
-            displayAlert("Name exists", USERNAME_EXISTS);
-        }
+        Platform.runLater(() -> {
+            if (ack) {
+                isLoggedIn = true;
+                Text helloMsg = new Text("Hello " + input.username);
+                //user = new Text(username);
+                helloMsg.setStyle(CssLayouts.cssBottomLayoutText);
+                helloMsg.setWrappingWidth(TEXT_WRAPPING_WIDTH);
+                bottomM.getChildren().add(helloMsg);
+                login.setVisible(false);
+                //            input.signIn.close();
+            } else {
+                input.username = null;
+                displayAlert("Name exists", USERNAME_EXISTS);
+            }
+        });
     }
 
     //TODO: make the cursor look like a pen.

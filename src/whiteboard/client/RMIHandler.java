@@ -4,22 +4,18 @@ package whiteboard.client;
 
 import whiteboard.Packet;
 
+import java.rmi.RemoteException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class RMIHandler implements Runnable {
 
-    private BlockingQueue<Callable<Packet>> outQueue = new LinkedBlockingQueue<>();
-    private InputHandler inQueue;
+    private BlockingQueue<Runnable> outQueue = new LinkedBlockingQueue<>();
 
-    public void setInputHandler(InputHandler inQueue) {
-        this.inQueue = inQueue;
-    }
-
-    public void put(Callable<Packet> callable) {
+    public void put(Runnable runnable) {
         try {
-            outQueue.put(callable);
+            outQueue.put(runnable);
         } catch (InterruptedException exception) {
             exception.printStackTrace();
             System.exit(-1);
@@ -30,10 +26,9 @@ public class RMIHandler implements Runnable {
     public void run() {
         try {
             while (true) {
-                Callable<Packet> callable = outQueue.take();
+                Runnable runnable = outQueue.take();
                 try {
-                    Packet packet = callable.call();
-                    inQueue.put(packet);
+                    runnable.run();
                 }
                 catch (Exception e) {
                     e.printStackTrace();

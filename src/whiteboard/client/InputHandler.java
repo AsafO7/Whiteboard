@@ -14,6 +14,8 @@ import javafx.stage.Stage;
 import whiteboard.Packet;
 import whiteboard.server.IServerHandler;
 
+import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -21,14 +23,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 //TODO: for EOF error check if you put break; in the switch.
 
-public class InputHandler implements Runnable {
+public class InputHandler implements IClientHandler {
 
     private static final int CHAT_MESSAGE_WRAPPING_WIDTH = 230, USERNAME_TEXT_WRAPPING_WIDTH = 200;
     private final Board board;
     private final Stage stage;
     private final IServerHandler stub;
     private Scene scene;
-    private BlockingQueue<Packet> inQueue = new LinkedBlockingQueue<>();
     private final VBox lobby;
     private RMIHandler rmiQueue;
     public WhiteboardRoom myRoom = null;
@@ -45,15 +46,6 @@ public class InputHandler implements Runnable {
         this.stub = stub;
     }
 
-    public void put(Packet packet) {
-        try {
-            inQueue.put(packet);
-        } catch (InterruptedException exception) {
-            exception.printStackTrace();
-            System.exit(-1);
-        }
-    }
-
     @Override
     public void run() {
         try {
@@ -64,7 +56,7 @@ public class InputHandler implements Runnable {
                 switch (packet.getType()) {
                     case ACK_USERNAME:
                         ack = packet.getAckUsername();
-                        Platform.runLater(() -> board.handleAckUsername(ack));
+                        this.handleAckUsername(ack);
                         break;
                     case ROOMS_NAMES:
                         List<String> roomsNames = packet.getRoomsNames();
@@ -121,6 +113,10 @@ public class InputHandler implements Runnable {
 //        }
 //    }
 
+    public void handleAckUsername(boolean ack) {
+        board.handleAckUsername(ack);
+    }
+
     private void handlerSetUser(String username) {
         this.username = username;
     }
@@ -129,30 +125,58 @@ public class InputHandler implements Runnable {
         myRoom.setHost(true);
     }
 
-    private void updateUsersListGUI(List<String> users) {
-        myRoom.getOnlineUsersPanel().getChildren().clear();
-        Text username;
-        for (String user: users) {
-            username = new Text(user);
-            username.setWrappingWidth(USERNAME_TEXT_WRAPPING_WIDTH);
-            myRoom.getOnlineUsersPanel().getChildren().add(username);
-        }
+    public void updateUsersListGUI(List<String> users) {
+        Platform.runLater(() -> {
+            myRoom.getOnlineUsersPanel().getChildren().clear();
+            Text username;
+            for (String user : users) {
+                username = new Text(user);
+                username.setWrappingWidth(USERNAME_TEXT_WRAPPING_WIDTH);
+                myRoom.getOnlineUsersPanel().getChildren().add(username);
+            }
+        });
     }
 
     private void addUserToGUI(String user) {
         myRoom.getOnlineUsersPanel().getChildren().add(new Text(user));
     }
 
-    private void handleNewRoomTransfer() {
-        String roomName = this.roomName;
-        myRoom = new WhiteboardRoom(this.username, this, rmiQueue, stub);
-        stage.setScene(myRoom.showBoard(stage,new Text(username), scene));
+    public void handleAckCreateRoom(boolean ack) {
+        if (ack) {
+            this.handleNewRoomTransfer(ack);
+        }
+        else {
+            //TODO: find a way to display alert for room of the same name
+        }
+    }
+
+    public void handleAckJoinRoom(boolean ack) {
+        if (ack) {
+
+        }
+        else {
+            rmiQueue.put(() -> {
+                try {
+                    return stub.handleGetRooms();
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
+    private void handleNewRoomTransfer(boolean ack) {
+        Platform.runLater(() -> {
+            String roomName = this.roomName;
+            myRoom = new WhiteboardRoom(this.username, this, rmiQueue, stub);
+            stage.setScene(myRoom.showBoard(stage, new Text(username), scene));
+        });
     }
 
     //different users don't have the same rooms list.
 
     /* This method will update the UI with the lobby rooms. */
-    private void handleRoomsList(List<String> roomsNames) {
+    public void handleRoomsList(List<String> roomsNames) {
         Platform.runLater(() -> {
             lobby.getChildren().clear();
             this.roomsNames.clear();
@@ -193,11 +217,13 @@ public class InputHandler implements Runnable {
     }
 
     /* This method displays the sent message in the chat window of the client. */
-    private void handleReceivedMessage(String msg) {
-        Text msgToReceive = new Text(msg);
-        msgToReceive.setStyle(CssLayouts.cssChatText);
-        msgToReceive.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
-        myRoom.getChatBox().getChildren().add(msgToReceive);
+    public void handleReceivedMessage(String msg) {
+        Platform.runLater(() -> {
+            Text msgToReceive = new Text(msg);
+            msgToReceive.setStyle(CssLayouts.cssChatText);
+            msgToReceive.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
+            myRoom.getChatBox().getChildren().add(msgToReceive);
+        });
     }
 
     public void setRoomName(String name) {
@@ -213,12 +239,16 @@ public class InputHandler implements Runnable {
     }
 
     public void updateDrawStack(List<CompleteDraw> drawings) {
-        if(myRoom == null) { return; }
-        myRoom.myDraws.clear();
-        for(int i = 0; i < drawings.size(); i++) {
-            myRoom.myDraws.add(convertToMyDraw(drawings.get(i)));
-        }
-        myRoom.repaint();
+        Platform.runLater(() -> {
+            if (myRoom == null) {
+                return;
+            }
+            myRoom.myDraws.clear();
+            for (int i = 0; i < drawings.size(); i++) {
+                myRoom.myDraws.add(convertToMyDraw(drawings.get(i)));
+            }
+            myRoom.repaint();
+        });
     }
 
     private MyDraw convertToMyDraw(CompleteDraw completeDraw) {
