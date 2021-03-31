@@ -25,6 +25,7 @@ import whiteboard.server.IServerHandler;
 
 import java.awt.*;
 import java.io.*;
+import java.rmi.RemoteException;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -147,13 +148,21 @@ public class WhiteboardRoom {
         leftMenu.setStyle(CssLayouts.cssLeftMenu + ";\n-fx-padding: 3 0 0 10;");
 
         rmiQueue.put(() -> {
-            return stub.handleGetRooms();
+            try {
+                stub.handleGetRooms(); /* There once was a return here. */
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
         });
-        try {
-            rmiQueue.put(Packet.requestUsersListGUI());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        rmiQueue.put(() -> {
+            try {
+                //rmiQueue.put(Packet.requestUsersListGUI());
+                stub.handleUpdateUsersListGUI();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+
 
         /********************************** Building the right menu - chat box ********************************/
 
@@ -180,11 +189,15 @@ public class WhiteboardRoom {
                 msg.setStyle(CssLayouts.cssChatText);
                 msg.setWrappingWidth(CHAT_MESSAGE_WRAPPING_WIDTH);
 
-                try {
-                    rmiQueue.put(Packet.sendMessage(msg.getText()));
-                } catch (InterruptedException interruptedException) {
-                    interruptedException.printStackTrace();
-                }
+                rmiQueue.put(() -> {
+                    try {
+                        //rmiQueue.put(Packet.sendMessage(msg.getText()));
+                        stub.handleSendMessage(msg.getText());
+                    } catch (RemoteException remoteException) {
+                        remoteException.printStackTrace();
+                    }
+                });
+
 
                 chatBox.getChildren().add(msg);
                 chatMsg.clear();
@@ -265,43 +278,52 @@ public class WhiteboardRoom {
 
             /* redo button functionality. */
             redo.setOnAction(e -> {
-                try {
-                    rmiQueue.put(Packet.createRequestRedo());
-                } catch (InterruptedException exception) {
-                    exception.printStackTrace();
-                }
+                rmiQueue.put(() -> {
+                    try {
+                        stub.redoDrawing();
+                    } catch (RemoteException remoteException) {
+                        remoteException.printStackTrace();
+                    }
+                });
             });
 
             /* undo button functionality. */
             undo.setOnAction(e -> {
-                try {
-                    rmiQueue.put(Packet.createRequestUndo());
-                } catch (InterruptedException exception) {
-                    exception.printStackTrace();
-                }
+                rmiQueue.put(() -> {
+                    try {
+                        stub.undoDrawing();
+                    } catch (RemoteException remoteException) {
+                        remoteException.printStackTrace();
+                    }
+                });
             });
 
             /* clear button functionality. */
             clear.setOnAction(e -> {
                 if(isHost) {
-                    //gc.clearRect(0, 0, CANVAS_WIDTH,CANVAS_HEIGHT);
-                    try {
-                        rmiQueue.put(Packet.requestClearBoard());
-                    } catch (InterruptedException exception) {
-                        exception.printStackTrace();
-                    }
+                    rmiQueue.put(() -> {
+                        try {
+                            stub.handleClearBoard();
+                        } catch (RemoteException remoteException) {
+                            remoteException.printStackTrace();
+                        }
+                    });
                 }
             });
 
             /* backToLobby button functionality. */
             backToLobby.setOnAction(e -> {
                 chatBox.getChildren().clear();
-                try {
-                    rmiQueue.put(Packet.requestExitRoom());
-                    rmiQueue.put(Packet.requestRoomsNames());
-                } catch (InterruptedException interruptedException) {
-                    interruptedException.printStackTrace();
-                }
+
+                rmiQueue.put(() -> {
+                    try {
+                        stub.handleRequestExitRoom();
+                        stub.handleGetRooms();
+                    } catch (RemoteException remoteException) {
+                        remoteException.printStackTrace();
+                    }
+                });
+
                 stage.setScene(lobby);
                 stage.setTitle("Lobby");
                 myDraws.clear();
@@ -315,11 +337,13 @@ public class WhiteboardRoom {
         /********************************** Choosing shapes event handler ********************************/
 
         canvas.setOnMousePressed(e -> {
-            try {
-                rmiQueue.put(Packet.requestChangeUsername(user.getText() + " drawing..."));
-            } catch (InterruptedException exception) {
-                exception.printStackTrace();
-            }
+            rmiQueue.put(() -> {
+                try {
+                    stub.handleChangeUsername(user.getText() + " drawing...");
+                } catch (RemoteException remoteException) {
+                    remoteException.printStackTrace();
+                }
+            });
             if(shapeChooser.getValue() == null) { return; }
 
             TextInputDialog arcH = new TextInputDialog(), arcW = new TextInputDialog();
@@ -380,11 +404,13 @@ public class WhiteboardRoom {
                         myDraws.add(t);
 //                            t.Draw(gc);
                         CompleteDraw drawing = convertMyDrawToCompleteDraw(myDraws.peek());
-                        try {
-                            rmiQueue.put(Packet.sendNewDrawing(drawing));
-                        } catch (InterruptedException exception) {
-                            exception.printStackTrace();
-                        }
+                        rmiQueue.put(() -> {
+                            try {
+                                stub.handleAddNewDrawing(drawing);
+                            } catch (RemoteException remoteException) {
+                                remoteException.printStackTrace();
+                            }
+                        });
                         repaint();
                         dialog.close();
                     });
@@ -435,29 +461,26 @@ public class WhiteboardRoom {
         });
 
         canvas.setOnMouseReleased(e -> {
-            try {
-                rmiQueue.put(Packet.requestChangeUsername(user.getText()));
-            } catch (InterruptedException exception) {
-                exception.printStackTrace();
-            }
+            rmiQueue.put(() -> {
+                try {
+                    stub.handleChangeUsername(user.getText());
+                } catch (RemoteException remoteException) {
+                    remoteException.printStackTrace();
+                }
+            });
             if (currDraw != null) {
                 myDraws.add(currDraw);
                 currDraw = null;
                 CompleteDraw drawing = convertMyDrawToCompleteDraw(myDraws.peek());
-                try {
-                    rmiQueue.put(Packet.sendNewDrawing(drawing));
-                } catch (InterruptedException exception) {
-                    exception.printStackTrace();
-                }
+                rmiQueue.put(() -> {
+                    try {
+                        stub.handleAddNewDrawing(drawing);
+                    } catch (RemoteException remoteException) {
+                        remoteException.printStackTrace();
+                    }
+                });
             }
         });
-
-        //TODO: search for paint brush icons. maybe put the picture in a .jar file.
-        //Maybe improve it.
-//        Image cursor = new Image("file:\\C:\\Users\\Asaf\\Desktop\\paint-brush-icon-9032.png");
-//        canvas.setOnMouseEntered(e -> {
-//            canvas.setCursor(new ImageCursor(cursor));
-//        });
 
         /******************************** Dividing the board scene layout into sections and creating the scene ********************************/
 
@@ -475,12 +498,13 @@ public class WhiteboardRoom {
 
         //if(!myDraws.isEmpty()) { repaint(); }
 
-        try {
-            rmiQueue.put(Packet.requestCurrentDrawings());
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
+        rmiQueue.put(() -> {
+            try {
+                stub.handleRequestCurrDrawings();
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        });
 
         return new Scene(whiteboardLayout, width, height);
     }

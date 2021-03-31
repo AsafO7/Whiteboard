@@ -236,7 +236,11 @@ public class Board extends Application{
 
                             completeDraws = (List<CompleteDraw>) deserialize(arr);
                             rmiQueue.put(() -> {
-                                return stub.handleCreateRoomWithDrawings(input.getRoomName(), completeDraws);
+                                try {
+                                    stub.handleCreateRoomWithDrawings(input.getRoomName(), completeDraws); /* There once was a return here. */
+                                } catch (RemoteException remoteException) {
+                                    remoteException.printStackTrace();
+                                }
                             });
 
                         } catch (SQLException | IOException | ClassNotFoundException sqlException) {
@@ -288,7 +292,11 @@ public class Board extends Application{
 
         refreshRooms.setOnAction(e -> {
             rmiQueue.put(() -> {
-                return stub.handleGetRooms();
+                try {
+                    stub.handleGetRooms(); /* There once was a return here. */
+                } catch (RemoteException remoteException) {
+                    remoteException.printStackTrace();
+                }
             });
         });
 
@@ -340,7 +348,11 @@ public class Board extends Application{
                         } else {
                             input.setRoomName(roomName.getText());
                             rmiQueue.put(() -> {
-                                return stub.handleCreateRoom(roomName.getText());
+                                try {
+                                    stub.handleCreateRoom(roomName.getText()); /* There once was a return here. */
+                                } catch (RemoteException remoteException) {
+                                    remoteException.printStackTrace();
+                                }
                             });
                         }
                     }
@@ -391,7 +403,11 @@ public class Board extends Application{
                     input.username = nickname.getText().trim();
                     signIn.close();
                     rmiQueue.put(() -> {
-                        return stub.handleRequestUsername(input.username);
+                        try {
+                            stub.handleRequestUsername(input.username); /* There once was a return here. */
+                        } catch (RemoteException remoteException) {
+                            remoteException.printStackTrace();
+                        }
                     });
                 }
             });

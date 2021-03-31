@@ -46,58 +46,62 @@ public class InputHandler implements IClientHandler {
         this.stub = stub;
     }
 
-    @Override
-    public void run() {
-        try {
-            while (true) {
-                Packet packet = inQueue.take();
-                boolean ack;
-
-                switch (packet.getType()) {
-                    case ACK_USERNAME:
-                        ack = packet.getAckUsername();
-                        this.handleAckUsername(ack);
-                        break;
-                    case ROOMS_NAMES:
-                        List<String> roomsNames = packet.getRoomsNames();
-                        Platform.runLater(() -> this.handleRoomsList(roomsNames));
-                        break;
-                    case ACK_CREATE_ROOM:
-                        if(packet.getAckCreateRoom()) {
-                            Platform.runLater(this::handleNewRoomTransfer);
-                        }
-                        else {
-                            //TODO: find a way to display alert for room of the same name
-                        }
-                        break;
-                    case  RECEIVE_MSG:
-                        String msg = packet.getMessageToReceive();
-                        Platform.runLater(() -> this.handleReceivedMessage(msg));
-                        break;
-                    case UPDATE_USERS_LIST:
-                        List<String> users = packet.getRoomUsers();
-                        Platform.runLater(() -> updateUsersListGUI(users));
-                        break;
-                    case NEW_DRAWING:
-                        List<CompleteDraw> drawings = packet.receiveAllDrawings();
-                        Platform.runLater(() -> this.updateDrawStack(drawings));
-                        break;
-                    case ACK_JOIN_ROOM:
-                        if(packet.getAckJoinRoom()) {
-                            Platform.runLater(this::handleNewRoomTransfer);
-                        }
-                        else {
-                            rmiQueue.put(() -> {
-                                return stub.handleGetRooms();
-                            });
-                            //TODO: find a way to display alert for not being able to join the room (or don't, I don't give a fuck)
-                        }
-                        break;
-                }
-            }
-        }
-        catch (Exception e) { e.printStackTrace(); }
-    }
+//    @Override
+//    public void run() {
+//        try {
+//            while (true) {
+//                Packet packet = inQueue.take();
+//                boolean ack;
+//
+//                switch (packet.getType()) {
+//                    case ACK_USERNAME:
+//                        ack = packet.getAckUsername();
+//                        this.handleAckUsername(ack);
+//                        break;
+//                    case ROOMS_NAMES:
+//                        List<String> roomsNames = packet.getRoomsNames();
+//                        Platform.runLater(() -> this.handleRoomsList(roomsNames));
+//                        break;
+//                    case ACK_CREATE_ROOM:
+//                        if(packet.getAckCreateRoom()) {
+//                            Platform.runLater(this::handleNewRoomTransfer);
+//                        }
+//                        else {
+//                            //TODO: find a way to display alert for room of the same name
+//                        }
+//                        break;
+//                    case  RECEIVE_MSG:
+//                        String msg = packet.getMessageToReceive();
+//                        Platform.runLater(() -> this.handleReceivedMessage(msg));
+//                        break;
+//                    case UPDATE_USERS_LIST:
+//                        List<String> users = packet.getRoomUsers();
+//                        Platform.runLater(() -> updateUsersListGUI(users));
+//                        break;
+//                    case NEW_DRAWING:
+//                        List<CompleteDraw> drawings = packet.receiveAllDrawings();
+//                        Platform.runLater(() -> this.updateDrawStack(drawings));
+//                        break;
+//                    case ACK_JOIN_ROOM:
+//                        if(packet.getAckJoinRoom()) {
+//                            Platform.runLater(this::handleNewRoomTransfer);
+//                        }
+//                        else {
+//                            rmiQueue.put(() -> {
+//                                try {
+//                                    stub.handleGetRooms(); /* There once was a return here. */
+//                                } catch (RemoteException e) {
+//                                    e.printStackTrace();
+//                                }
+//                            });
+//                            //TODO: find a way to display alert for not being able to join the room (or don't, I don't give a fuck)
+//                        }
+//                        break;
+//                }
+//            }
+//        }
+//        catch (Exception e) { e.printStackTrace(); }
+//    }
 
 //    private void handleAckUsername(boolean ack) {
 //        if(ack) {
@@ -114,7 +118,9 @@ public class InputHandler implements IClientHandler {
 //    }
 
     public void handleAckUsername(boolean ack) {
-        board.handleAckUsername(ack);
+        Platform.runLater(() -> {
+            board.handleAckUsername(ack);
+        });
     }
 
     private void handlerSetUser(String username) {
@@ -157,7 +163,7 @@ public class InputHandler implements IClientHandler {
         else {
             rmiQueue.put(() -> {
                 try {
-                    return stub.handleGetRooms();
+                    stub.handleGetRooms(); /* There once was a return here. */
                 } catch (RemoteException e) {
                     e.printStackTrace();
                 }
@@ -201,7 +207,11 @@ public class InputHandler implements IClientHandler {
         lobby.getChildren().get(i).setOnMouseClicked(e -> {
             if(board.isLoggedIn) {
                 rmiQueue.put(() -> {
-                    return stub.handleAddUserToRoom(roomsNames.get(i));
+                    try {
+                        stub.handleAddUserToRoom(roomsNames.get(i)); /* There once was a return here. */
+                    } catch (RemoteException remoteException) {
+                        remoteException.printStackTrace();
+                    }
                 });
             }
             else {

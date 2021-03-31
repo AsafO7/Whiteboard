@@ -1,5 +1,6 @@
 package whiteboard.server;
 
+import javafx.application.Platform;
 import whiteboard.Packet;
 import whiteboard.client.CompleteDraw;
 import whiteboard.client.IClientHandler;
@@ -30,9 +31,12 @@ public class Handler implements IServerHandler {
         this.stub = stub;
     }
 
-    private void handleChangeUsername(String userName) {
-        this.username = userName;
-        updateUsersListGUI(true);
+    public void handleChangeUsername(String userName) {
+        Platform.runLater(() -> {
+            this.username = userName;
+            updateUsersListGUI(true);
+        });
+
     }
 
     public void handleRequestUsername(String username) {
@@ -64,75 +68,81 @@ public class Handler implements IServerHandler {
         });
     }
 
-    private void handleClearBoard() {
-        if (currRoom.getHost() != this) { return; }
-        CompleteDraw drawing;
-        synchronized (currRoom.getDrawings()) {
-            if (currRoom.getDrawings().size() == 0) { return; }
+    public void handleClearBoard() {
+        Platform.runLater(() -> {
+            if (currRoom.getHost() != this) { return; }
+            CompleteDraw drawing;
+            synchronized (currRoom.getDrawings()) {
+                if (currRoom.getDrawings().size() == 0) { return; }
 
-            drawing = currRoom.getDrawings().remove(currRoom.getDrawings().size() - 1);
-            synchronized (currRoom.getDeletedDrawings()) {
-                currRoom.getDeletedDrawings().add(drawing);
-                while (!currRoom.getDrawings().isEmpty()) {
-                    drawing = currRoom.getDrawings().remove(currRoom.getDrawings().size() - 1);
+                drawing = currRoom.getDrawings().remove(currRoom.getDrawings().size() - 1);
+                synchronized (currRoom.getDeletedDrawings()) {
                     currRoom.getDeletedDrawings().add(drawing);
-                }
-            }
-        }
-
-        synchronized (currRoom.getUsers()) {
-            for(Handler handler: currRoom.getUsers()) {
-                handler.handleRequestCurrDrawings();
-            }
-        }
-    }
-
-    private void handleRequestExitRoom() {
-        if (currRoom != null) {
-            Room room = currRoom;
-            if (this == room.getHost()) {
-                room.setHost(null);
-            }
-            removeUserFromRoom();
-            synchronized (room.getUsers()) {
-                //currRoom.getUsers().remove(this);
-                List<String> users = new ArrayList<>();
-                for (Handler handler : room.getUsers()) {
-                    users.add(handler.username);
-                }
-                for (Handler handler : room.getUsers()) {
-                    if (handler != this) {
-                        handler.outQueue.put(() -> {
-                            try {
-                                this.stub.updateUsersListGUI(users);
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
-                        });
+                    while (!currRoom.getDrawings().isEmpty()) {
+                        drawing = currRoom.getDrawings().remove(currRoom.getDrawings().size() - 1);
+                        currRoom.getDeletedDrawings().add(drawing);
                     }
                 }
             }
-            if(room.getUsers().isEmpty()) {
 
-                rooms.remove(room);
+            synchronized (currRoom.getUsers()) {
+                for (Handler handler : currRoom.getUsers()) {
+                    handler.handleRequestCurrDrawings();
+                }
             }
-            else { // The room is not empty
-                room.setHost(room.getUsers().get(0)); // Appoint the first user in the room as the new host
-            }
-        }
-        else {
-            //TODO: do some error handling if we call this function when we are not in a room
-        }
+        });
     }
 
-    private void handleRequestCurrDrawings() {
-        List<CompleteDraw> drawings = new ArrayList<>(currRoom.getDrawings());
-        outQueue.put(() -> {
-            try {
-                this.stub.updateDrawStack(drawings);
-            } catch (RemoteException e) {
-                e.printStackTrace();
+    public void handleRequestExitRoom() {
+        Platform.runLater(() -> {
+            if (currRoom != null) {
+                Room room = currRoom;
+                if (this == room.getHost()) {
+                    room.setHost(null);
+                }
+                removeUserFromRoom();
+                synchronized (room.getUsers()) {
+                    //currRoom.getUsers().remove(this);
+                    List<String> users = new ArrayList<>();
+                    for (Handler handler : room.getUsers()) {
+                        users.add(handler.username);
+                    }
+                    for (Handler handler : room.getUsers()) {
+                        if (handler != this) {
+                            handler.outQueue.put(() -> {
+                                try {
+                                    this.stub.updateUsersListGUI(users);
+                                } catch (RemoteException e) {
+                                    e.printStackTrace();
+                                }
+                            });
+                        }
+                    }
+                }
+                if(room.getUsers().isEmpty()) {
+
+                    rooms.remove(room);
+                }
+                else { // The room is not empty
+                    room.setHost(room.getUsers().get(0)); // Appoint the first user in the room as the new host
+                }
             }
+            else {
+                //TODO: do some error handling if we call this function when we are not in a room
+            }
+        });
+    }
+
+    public void handleRequestCurrDrawings() {
+        Platform.runLater(() -> {
+            List<CompleteDraw> drawings = new ArrayList<>(currRoom.getDrawings());
+            outQueue.put(() -> {
+                try {
+                    this.stub.updateDrawStack(drawings);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            });
         });
     }
 
@@ -141,28 +151,33 @@ public class Handler implements IServerHandler {
         this.currRoom = null;
     }
 
-    public Packet handleAddUserToRoom(String roomName) {
-        synchronized (rooms) {
-            for (Room room : rooms) {
-                if (room.getName().equals(roomName)) {
-                    room.getUsers().add(this);
-                    this.currRoom = room;
-                    break; } } }
-        if (currRoom != null) {
-            updateUsersListGUI(false);
-        }
-        boolean ack = currRoom != null;
-        outQueue.put(() -> {
-            try {
-                this.stub.handleAckJoinRoom(ack);
-            } catch (RemoteException e) {
-                e.printStackTrace();
+    public void handleAddUserToRoom(String roomName) {
+        Platform.runLater(() -> {
+            synchronized (rooms) {
+                for (Room room : rooms) {
+                    if (room.getName().equals(roomName)) {
+                        room.getUsers().add(this);
+                        this.currRoom = room;
+                        break; } } }
+            if (currRoom != null) {
+                updateUsersListGUI(false);
             }
+            boolean ack = currRoom != null;
+            outQueue.put(() -> {
+                try {
+                    this.stub.handleAckJoinRoom(ack);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            });
         });
     }
 
     public void handleUpdateUsersListGUI() {
-        updateUsersListGUI(true);
+        Platform.runLater(() -> {
+            updateUsersListGUI(true);
+        });
+
     }
 
     // When requested by the client, should be called with 'true'
@@ -271,40 +286,44 @@ public class Handler implements IServerHandler {
         });
     }
 
-    private void handleSendMessage(String messageToSend) {
-        synchronized (currRoom.getUsers()) {
-            for (Handler handler : this.currRoom.getUsers()) {
-                if (handler != this) {
+    public void handleSendMessage(String messageToSend) {
+        Platform.runLater(() -> {
+            synchronized (currRoom.getUsers()) {
+                for (Handler handler : this.currRoom.getUsers()) {
+                    if (handler != this) {
                         handler.outQueue.put(() -> {
                             try {
-                                this.stub.handleReceivedMessage(messageToSend);
+                                this.stub.handleReceivedMessage(messageToSend); /* should we replace this with handler? */
                             } catch (RemoteException e) {
                                 e.printStackTrace();
                             }
                         });
-                }
-            }
-        }
-    }
-
-    private void handleAddNewDrawing(CompleteDraw drawing) {
-        if(currRoom == null) { return; }
-        synchronized (currRoom.getDeletedDrawings()) {
-            currRoom.getDeletedDrawings().clear();
-        }
-        synchronized (currRoom.getDrawings()) {
-
-            // Add the new drawing to the stack on the server side
-            currRoom.getDrawings().add(drawing);
-
-            synchronized (currRoom.getUsers()) {
-                for (Handler handler : this.currRoom.getUsers()) {
-                    if (handler != this) {
-                        handler.sendAllDrawings();
                     }
                 }
             }
-        }
+        });
+    }
+
+    public void handleAddNewDrawing(CompleteDraw drawing) {
+        Platform.runLater(() -> {
+            if(currRoom == null) { return; }
+            synchronized (currRoom.getDeletedDrawings()) {
+                currRoom.getDeletedDrawings().clear();
+            }
+            synchronized (currRoom.getDrawings()) {
+
+                // Add the new drawing to the stack on the server side
+                currRoom.getDrawings().add(drawing);
+
+                synchronized (currRoom.getUsers()) {
+                    for (Handler handler : this.currRoom.getUsers()) {
+                        if (handler != this) {
+                            handler.sendAllDrawings();
+                        }
+                    }
+                }
+            }
+        });
     }
 
     private void sendAllDrawings() {
@@ -318,41 +337,45 @@ public class Handler implements IServerHandler {
         });
     }
 
-    private void undoDrawing() {
-        if (currRoom == null) { return; }
-        CompleteDraw drawing;
-        synchronized (currRoom.getDrawings()) {
-            if (currRoom.getDrawings().size() == 0) { return; }
-            drawing = currRoom.getDrawings().remove(currRoom.getDrawings().size() - 1);
-        }
-        synchronized (currRoom.getDeletedDrawings()) {
-            currRoom.getDeletedDrawings().add(drawing);
-        }
-        synchronized (currRoom.getDrawings()) {
-            synchronized (currRoom.getUsers()) {
-                for (Handler handler : this.currRoom.getUsers()) {
-                    handler.sendAllDrawings();
+    public void undoDrawing() {
+        Platform.runLater(() -> {
+            if (currRoom == null) { return; }
+            CompleteDraw drawing;
+            synchronized (currRoom.getDrawings()) {
+                if (currRoom.getDrawings().size() == 0) { return; }
+                drawing = currRoom.getDrawings().remove(currRoom.getDrawings().size() - 1);
+            }
+            synchronized (currRoom.getDeletedDrawings()) {
+                currRoom.getDeletedDrawings().add(drawing);
+            }
+            synchronized (currRoom.getDrawings()) {
+                synchronized (currRoom.getUsers()) {
+                    for (Handler handler : this.currRoom.getUsers()) {
+                        handler.sendAllDrawings();
+                    }
                 }
             }
-        }
+        });
     }
 
-    private void redoDrawing() {
-        if (currRoom == null) { return; }
-        CompleteDraw drawing;
-        synchronized (currRoom.getDeletedDrawings()) {
-            if (currRoom.getDeletedDrawings().size() == 0) { return; }
-            drawing = currRoom.getDeletedDrawings().remove(currRoom.getDeletedDrawings().size() - 1);
-        }
-        synchronized (currRoom.getDrawings()) {
-            currRoom.getDrawings().add(drawing);
+    public void redoDrawing() {
+        Platform.runLater(() -> {
+            if (currRoom == null) { return; }
+            CompleteDraw drawing;
+            synchronized (currRoom.getDeletedDrawings()) {
+                if (currRoom.getDeletedDrawings().size() == 0) { return; }
+                drawing = currRoom.getDeletedDrawings().remove(currRoom.getDeletedDrawings().size() - 1);
+            }
+            synchronized (currRoom.getDrawings()) {
+                currRoom.getDrawings().add(drawing);
 
-            synchronized (currRoom.getUsers()) {
-                for (Handler handler : this.currRoom.getUsers()) {
-                    handler.sendAllDrawings();
+                synchronized (currRoom.getUsers()) {
+                    for (Handler handler : this.currRoom.getUsers()) {
+                        handler.sendAllDrawings();
+                    }
                 }
             }
-        }
+        });
     }
 
 //    public String getUsername() { return this.username; }
