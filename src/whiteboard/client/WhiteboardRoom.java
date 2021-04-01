@@ -491,6 +491,12 @@ public class WhiteboardRoom {
         whiteboardLayout.setRight(rightMenu);
         whiteboardLayout.setCenter(center);
 
+        AnchorPane aPane = new AnchorPane();
+        AnchorPane.setLeftAnchor(whiteboardLayout, 0.0);
+        AnchorPane.setRightAnchor(whiteboardLayout, 0.0);
+        AnchorPane.setTopAnchor(whiteboardLayout, 0.0);
+        AnchorPane.setBottomAnchor(whiteboardLayout, 0.0);
+
         // This code should make the window adaptable to all screen sizes.
         GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
         int width = gd.getDisplayMode().getWidth();

@@ -32,10 +32,10 @@ public class Handler implements IServerHandler {
     }
 
     public void handleChangeUsername(String userName) {
-        Platform.runLater(() -> {
+        //Platform.runLater(() -> {
             this.username = userName;
             updateUsersListGUI(true);
-        });
+        //});
 
     }
 
@@ -69,7 +69,7 @@ public class Handler implements IServerHandler {
     }
 
     public void handleClearBoard() {
-        Platform.runLater(() -> {
+        //Platform.runLater(() -> {
             if (currRoom.getHost() != this) { return; }
             CompleteDraw drawing;
             synchronized (currRoom.getDrawings()) {
@@ -90,11 +90,11 @@ public class Handler implements IServerHandler {
                     handler.handleRequestCurrDrawings();
                 }
             }
-        });
+       // });
     }
 
     public void handleRequestExitRoom() {
-        Platform.runLater(() -> {
+        //Platform.runLater(() -> {
             if (currRoom != null) {
                 Room room = currRoom;
                 if (this == room.getHost()) {
@@ -130,11 +130,11 @@ public class Handler implements IServerHandler {
             else {
                 //TODO: do some error handling if we call this function when we are not in a room
             }
-        });
+       // });
     }
 
     public void handleRequestCurrDrawings() {
-        Platform.runLater(() -> {
+        //Platform.runLater(() -> {
             List<CompleteDraw> drawings = new ArrayList<>(currRoom.getDrawings());
             outQueue.put(() -> {
                 try {
@@ -143,7 +143,7 @@ public class Handler implements IServerHandler {
                     e.printStackTrace();
                 }
             });
-        });
+       // });
     }
 
     private void removeUserFromRoom() {
@@ -152,7 +152,7 @@ public class Handler implements IServerHandler {
     }
 
     public void handleAddUserToRoom(String roomName) {
-        Platform.runLater(() -> {
+       // Platform.runLater(() -> {
             synchronized (rooms) {
                 for (Room room : rooms) {
                     if (room.getName().equals(roomName)) {
@@ -170,13 +170,13 @@ public class Handler implements IServerHandler {
                     e.printStackTrace();
                 }
             });
-        });
+       // });
     }
 
     public void handleUpdateUsersListGUI() {
-        Platform.runLater(() -> {
+        //Platform.runLater(() -> {
             updateUsersListGUI(true);
-        });
+        //});
 
     }
 
@@ -287,13 +287,13 @@ public class Handler implements IServerHandler {
     }
 
     public void handleSendMessage(String messageToSend) {
-        Platform.runLater(() -> {
+       // Platform.runLater(() -> {
             synchronized (currRoom.getUsers()) {
                 for (Handler handler : this.currRoom.getUsers()) {
                     if (handler != this) {
                         handler.outQueue.put(() -> {
                             try {
-                                this.stub.handleReceivedMessage(messageToSend); /* should we replace this with handler? */
+                                handler.stub.handleReceivedMessage(messageToSend); /* should we replace this with handler? */
                             } catch (RemoteException e) {
                                 e.printStackTrace();
                             }
@@ -301,11 +301,11 @@ public class Handler implements IServerHandler {
                     }
                 }
             }
-        });
+        //});
     }
 
     public void handleAddNewDrawing(CompleteDraw drawing) {
-        Platform.runLater(() -> {
+       // Platform.runLater(() -> {
             if(currRoom == null) { return; }
             synchronized (currRoom.getDeletedDrawings()) {
                 currRoom.getDeletedDrawings().clear();
@@ -323,7 +323,7 @@ public class Handler implements IServerHandler {
                     }
                 }
             }
-        });
+        //});
     }
 
     private void sendAllDrawings() {
@@ -338,7 +338,7 @@ public class Handler implements IServerHandler {
     }
 
     public void undoDrawing() {
-        Platform.runLater(() -> {
+       // Platform.runLater(() -> {
             if (currRoom == null) { return; }
             CompleteDraw drawing;
             synchronized (currRoom.getDrawings()) {
@@ -355,11 +355,11 @@ public class Handler implements IServerHandler {
                     }
                 }
             }
-        });
+       // });
     }
 
     public void redoDrawing() {
-        Platform.runLater(() -> {
+       // Platform.runLater(() -> {
             if (currRoom == null) { return; }
             CompleteDraw drawing;
             synchronized (currRoom.getDeletedDrawings()) {
@@ -375,7 +375,7 @@ public class Handler implements IServerHandler {
                     }
                 }
             }
-        });
+       // });
     }
 
 //    public String getUsername() { return this.username; }

@@ -209,6 +209,8 @@ public class InputHandler implements IClientHandler {
                 rmiQueue.put(() -> {
                     try {
                         stub.handleAddUserToRoom(roomsNames.get(i)); /* There once was a return here. */
+                        handleNewRoomTransfer(true);
+                        stub.handleRequestCurrDrawings();
                     } catch (RemoteException remoteException) {
                         remoteException.printStackTrace();
                     }

@@ -422,6 +422,13 @@ public class Board extends Application{
         lobbyLayout.setRight(info);
         lobbyLayout.setCenter(mainLobby);
         lobbyLayout.setBottom(bottomM);
+
+        AnchorPane aPane = new AnchorPane();
+        AnchorPane.setLeftAnchor(lobbyLayout, 0.0);
+        AnchorPane.setRightAnchor(lobbyLayout, 0.0);
+        AnchorPane.setTopAnchor(lobbyLayout, 0.0);
+        AnchorPane.setBottomAnchor(lobbyLayout, 0.0);
+
         lobby = new Scene(lobbyLayout, width, height);
 
     /******************************** Lobby scene - End ********************************/
