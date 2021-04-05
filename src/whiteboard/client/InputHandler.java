@@ -11,22 +11,18 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
-import whiteboard.Packet;
 import whiteboard.server.IServerHandler;
 
 import java.rmi.RemoteException;
-import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
-//TODO: for EOF error check if you put break; in the switch.
+/* This class implements the RMI client interface. */
 
 public class InputHandler implements IClientHandler {
 
     private static final int CHAT_MESSAGE_WRAPPING_WIDTH = 230, USERNAME_TEXT_WRAPPING_WIDTH = 200;
-    private final Board board;
+    private final Lobby board;
     private final Stage stage;
     private final IServerHandler stub;
     private Scene scene;
@@ -37,7 +33,7 @@ public class InputHandler implements IClientHandler {
     private List<String> roomsNames = new ArrayList<>();
     public String username = null;
 
-    public InputHandler(Board board, VBox currentLobby, Stage stage, Scene scene, RMIHandler rmiQueue, IServerHandler stub) {
+    public InputHandler(Lobby board, VBox currentLobby, Stage stage, Scene scene, RMIHandler rmiQueue, IServerHandler stub) {
         this.board = board;
         this.lobby = currentLobby; // the GUI container of the rooms.
         this.stage = stage;
@@ -117,6 +113,7 @@ public class InputHandler implements IClientHandler {
 //        }
 //    }
 
+    /* Calls an outside function to take care of the acknowledgement. */
     public void handleAckUsername(boolean ack) {
         Platform.runLater(() -> {
             board.handleAckUsername(ack);
@@ -131,6 +128,7 @@ public class InputHandler implements IClientHandler {
         myRoom.setHost(true);
     }
 
+    /* Updates the Users displayed in a room. */
     public void updateUsersListGUI(List<String> users) {
         Platform.runLater(() -> {
             myRoom.getOnlineUsersPanel().getChildren().clear();
@@ -143,19 +141,19 @@ public class InputHandler implements IClientHandler {
         });
     }
 
+    /* Adds the user to the online users panel */
     private void addUserToGUI(String user) {
         myRoom.getOnlineUsersPanel().getChildren().add(new Text(user));
     }
 
+    /* Takes care of the acknowledgement of creating a new room */
     public void handleAckCreateRoom(boolean ack) {
         if (ack) {
             this.handleNewRoomTransfer(ack);
         }
-        else {
-            //TODO: find a way to display alert for room of the same name
-        }
     }
 
+    /* Takes care of the acknowledgement of joining a room */
     public void handleAckJoinRoom(boolean ack) {
         if (ack) {
 
@@ -178,8 +176,6 @@ public class InputHandler implements IClientHandler {
             stage.setScene(myRoom.showBoard(stage, new Text(username), scene));
         });
     }
-
-    //different users don't have the same rooms list.
 
     /* This method will update the UI with the lobby rooms. */
     public void handleRoomsList(List<String> roomsNames) {
@@ -250,6 +246,7 @@ public class InputHandler implements IClientHandler {
         return roomsNames;
     }
 
+    /* Updates the drawings stack for a user in the room */
     public void updateDrawStack(List<CompleteDraw> drawings) {
         Platform.runLater(() -> {
             if (myRoom == null) {

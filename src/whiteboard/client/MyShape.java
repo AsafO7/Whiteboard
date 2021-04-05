@@ -2,7 +2,7 @@ package whiteboard.client;
 
 import whiteboard.client.MyDraw;
 
-/* This class represents the basic traits of a shape: a starting point and a color. */
+/* This class represents the basic traits of a shape(rectangle, oval, line, round rectangle) */
 
 public abstract class MyShape extends MyDraw {
 

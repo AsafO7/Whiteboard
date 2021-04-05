@@ -93,9 +93,7 @@ public class Packet implements Serializable {
 
     public static Packet sendMessage(String msg) { return new Packet(msg, Type.SEND_MSG); }
 
-    public static Packet receiveMessage(String msg) {
-        return new Packet(msg, Type.RECEIVE_MSG);
-    }
+    public static Packet receiveMessage(String msg) { return new Packet(msg, Type.RECEIVE_MSG); }
 
     public static Packet requestJoinRoom(String room) { return new Packet(room, Type.REQUEST_JOIN_ROOM); }
 
@@ -112,8 +110,6 @@ public class Packet implements Serializable {
     public static Packet requestUsersListGUI() { return new Packet(null, Type.REQUEST_USERS_LIST_GUI); }
 
     public static Packet requestClearBoard() { return new Packet(null, Type.REQUEST_CLEAR_BOARD); }
-
-    //public static Packet receiveCurrentDrawings(List<CompleteDraw> drawings) { return new Packet(drawings, Type.RECEIVE_CURRENT_DRAWINGS); }
 
     /******************************** Type errors handling ********************************/
 

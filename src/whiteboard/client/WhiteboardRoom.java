@@ -1,4 +1,4 @@
-package whiteboard.client;/* This class represents a user and its tools (i.e drawings, nickname...) */
+package whiteboard.client;
 
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -20,7 +20,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import whiteboard.Packet;
 import whiteboard.server.IServerHandler;
 
 import java.awt.*;
@@ -30,7 +29,8 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
-import java.util.concurrent.BlockingQueue;
+
+/* This class represents a whiteboard room. */
 
 public class WhiteboardRoom {
 
@@ -61,7 +61,10 @@ public class WhiteboardRoom {
     // If the user isn't the host don't clear the board.
     private boolean isHost = false;
 
-    private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900;
+    // This code should make the window adaptable to all screen sizes.
+    GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+    int width = gd.getDisplayMode().getWidth();
+    int height = gd.getDisplayMode().getHeight() - 60;
 
     private String host;
     public WhiteboardRoom(String host, InputHandler input, RMIHandler rmiQueue, IServerHandler stub) {
@@ -80,14 +83,11 @@ public class WhiteboardRoom {
         this.isHost = isHost;
     }
 
-    //TODO: make the screen width and height work with %.
-
     public Scene showBoard(Stage stage, Text user, Scene lobby) {
 
-        final int GRID_MENU_SPACING = 10, LEFT_MENU_WIDTH = 200, RIGHT_MENU_WIDTH = 300, TOP_MENU_HEIGHT = 60,
-                BOTTOM_MENU_LEFT = 160, TOOLBAR_HEIGHT = 60, TEXT_WRAPPING_WIDTH = 125, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
-                DRAWING_TEXT_DIALOG_WINDOW_HEIGHT = 200, CHAT_MESSAGE_WRAPPING_WIDTH = 230,
-                MIN_LINE_THICKNESS = 1, MAX_LINE_THICKNESS = 15;
+        final int GRID_MENU_SPACING = 10, BOTTOM_MENU_LEFT = 160,
+                DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300, DRAWING_TEXT_DIALOG_WINDOW_HEIGHT = 200,
+                CHAT_MESSAGE_WRAPPING_WIDTH = 230, MIN_LINE_THICKNESS = 1, MAX_LINE_THICKNESS = 15;
 
         /********************************** Initializing objects ********************************/
 
@@ -114,10 +114,6 @@ public class WhiteboardRoom {
         CheckBox fillShape = new CheckBox("Fill Shape");
         fillShape.setStyle(CssLayouts.cssBottomLayoutText);
 
-//            users.add(user);
-//            // This line prevents text overflow.
-//            users.get(users.size() - 1).setWrappingWidth(TEXT_WRAPPING_WIDTH);
-
         /******************************** Whiteboard scene ********************************/
 
         /********************************** Building the bottom menu ********************************/
@@ -127,6 +123,8 @@ public class WhiteboardRoom {
         bottomMenu.setPadding(new Insets(GRID_MENU_SPACING, GRID_MENU_SPACING, GRID_MENU_SPACING, BOTTOM_MENU_LEFT));
         bottomMenu.setVgap(GRID_MENU_SPACING);
         bottomMenu.setHgap(GRID_MENU_SPACING);
+        bottomMenu.setMinHeight(height/12);
+        bottomMenu.setMaxHeight(height/12);
 
         // Adding buttons to the bottom menu.
         Object[] bottomMenuItems = { saveDrawing, shapeLabel, shapeChooser, colorChooser, thicknessLabel, thickness,
@@ -142,10 +140,9 @@ public class WhiteboardRoom {
 
         /********************************** Building the left menu - online users list ********************************/
 
-        // Online users in the room.
-        leftMenu.setMaxWidth(LEFT_MENU_WIDTH);
-        leftMenu.setMinWidth(LEFT_MENU_WIDTH);
-        leftMenu.setStyle(CssLayouts.cssLeftMenu + ";\n-fx-padding: 3 0 0 10;");
+        leftMenu.setMaxWidth(width/6);
+        leftMenu.setMinWidth(width/6);
+        leftMenu.setStyle(CssLayouts.cssLeftMenu);
 
         rmiQueue.put(() -> {
             try {
@@ -156,7 +153,6 @@ public class WhiteboardRoom {
         });
         rmiQueue.put(() -> {
             try {
-                //rmiQueue.put(Packet.requestUsersListGUI());
                 stub.handleUpdateUsersListGUI();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -177,7 +173,9 @@ public class WhiteboardRoom {
         BorderPane rightMenu = new BorderPane(); // Right menu wrapper.
         rightMenu.setBottom(chatMsgWrapper);
         rightMenu.setCenter(chatWrapper);
-        setLayoutWidth(rightMenu, RIGHT_MENU_WIDTH);
+        rightMenu.setStyle(CssLayouts.cssBorder);
+        rightMenu.setMaxWidth(width/4.5);
+        rightMenu.setMinWidth(width/4.5);
         chatWrapper.setVvalue(1.0); // Makes the scrollpane scroll to the bottom automatically.
 
         // Event handler for sending a message.
@@ -191,14 +189,11 @@ public class WhiteboardRoom {
 
                 rmiQueue.put(() -> {
                     try {
-                        //rmiQueue.put(Packet.sendMessage(msg.getText()));
                         stub.handleSendMessage(msg.getText());
                     } catch (RemoteException remoteException) {
                         remoteException.printStackTrace();
                     }
                 });
-
-
                 chatBox.getChildren().add(msg);
                 chatMsg.clear();
             }
@@ -210,12 +205,13 @@ public class WhiteboardRoom {
         topMenu.getChildren().add(topM);
         topM.setFill(Color.GREEN);
         topMenu.setStyle(CssLayouts.cssTopLayout);
-        topMenu.setMinHeight(TOP_MENU_HEIGHT);
+        topMenu.setMinHeight(height/12);
+        topMenu.setMaxHeight(height/12);
 
         /********************************** Building the canvas on which the user will draw ********************************/
 
         HBox center = new HBox();
-        Canvas canvas = new Canvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+        Canvas canvas = new Canvas(width/1.575, height/1.2);
         center.setStyle(CssLayouts.cssBorder);
         center.getChildren().add(canvas);
         gc = canvas.getGraphicsContext2D();
@@ -236,11 +232,11 @@ public class WhiteboardRoom {
                 List<MyDraw> drawings = new ArrayList<>(this.myDraws);
 
 
-                try(Connection connection = DriverManager.getConnection(Board.DATABASE_URL);)
+                try(Connection connection = DriverManager.getConnection(Lobby.DATABASE_URL);)
                 {
                     // create a database connection
                     Statement statement = connection.createStatement();
-                    statement.setQueryTimeout(2);  // set timeout to 30 sec.
+                    statement.setQueryTimeout(2);  // set timeout to 2 sec.
 
                     statement.executeUpdate("DROP TABLE IF EXISTS save");
 
@@ -248,12 +244,10 @@ public class WhiteboardRoom {
                 }
                 catch(SQLException sqlException)
                 {
-                    // if the error message is "out of memory",
-                    // it probably means no database file is found
                     System.err.println(sqlException.getMessage());
                 }
 
-                try(Connection connection = DriverManager.getConnection(Board.DATABASE_URL);) {
+                try(Connection connection = DriverManager.getConnection(Lobby.DATABASE_URL);) {
 
                     List<CompleteDraw> arr = new ArrayList<>();
                     for(int i = 0; i < drawings.size(); i++) {
@@ -269,11 +263,8 @@ public class WhiteboardRoom {
                 }
                 catch(SQLException | IOException sqlException)
                 {
-                    // if the error message is "out of memory",
-                    // it probably means no database file is found
                     System.err.println(sqlException.getMessage());
                 }
-
             });
 
             /* redo button functionality. */
@@ -373,7 +364,8 @@ public class WhiteboardRoom {
                     /* The user will have to draw another shape in order to change the values of the arcs. */
                     else {
                         int arcWidth = isNumeric(arcW.getContentText()), arcHeight = isNumeric(arcH.getContentText());
-                        currDraw = new MyRoundRect(e.getX(),e.getY(),0,0,color, thickness.getValue(), toFill,arcWidth,arcHeight);
+                        currDraw = new MyRoundRect(e.getX(),e.getY(),0,0,color, thickness.getValue(),
+                                toFill,arcWidth,arcHeight);
                     }
                     isRoundRectChosen = true;
                     break;
@@ -402,7 +394,6 @@ public class WhiteboardRoom {
                     btn.setOnAction(eBtn -> {
                         TextBox t = new TextBox(e.getX(), e.getY(), color, text.getText());
                         myDraws.add(t);
-//                            t.Draw(gc);
                         CompleteDraw drawing = convertMyDrawToCompleteDraw(myDraws.peek());
                         rmiQueue.put(() -> {
                             try {
@@ -491,19 +482,6 @@ public class WhiteboardRoom {
         whiteboardLayout.setRight(rightMenu);
         whiteboardLayout.setCenter(center);
 
-        AnchorPane aPane = new AnchorPane();
-        AnchorPane.setLeftAnchor(whiteboardLayout, 0.0);
-        AnchorPane.setRightAnchor(whiteboardLayout, 0.0);
-        AnchorPane.setTopAnchor(whiteboardLayout, 0.0);
-        AnchorPane.setBottomAnchor(whiteboardLayout, 0.0);
-
-        // This code should make the window adaptable to all screen sizes.
-        GraphicsDevice gd = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
-        int width = gd.getDisplayMode().getWidth();
-        int height = gd.getDisplayMode().getHeight() - TOOLBAR_HEIGHT;
-
-        //if(!myDraws.isEmpty()) { repaint(); }
-
         rmiQueue.put(() -> {
             try {
                 stub.handleRequestCurrDrawings();
@@ -515,19 +493,13 @@ public class WhiteboardRoom {
         return new Scene(whiteboardLayout, width, height);
     }
 
+    /*************************************** Functions ************************************************/
+
     /* Repaints the canvas */
     public void repaint() {
-        gc.clearRect(0, 0, CANVAS_WIDTH,CANVAS_HEIGHT);
+        gc.clearRect(0, 0, width/1.575, height / 1.2);
         for (MyDraw myDraw : myDraws) { myDraw.Draw(gc); }
         if (currDraw != null) { currDraw.Draw(gc); }
-    }
-
-    // To prevent repeated code.
-    private void setLayoutWidth(Pane p, int width) {
-        if(p == null) { return; }
-        p.setStyle(CssLayouts.cssBorder);
-        p.setMaxWidth(width);
-        p.setMinWidth(width);
     }
 
     /* If str is a number, returns that number. Else returns default value.
@@ -550,43 +522,43 @@ public class WhiteboardRoom {
                 (int)( draw.getColor().getGreen() * 255 ),
                 (int)( draw.getColor().getBlue() * 255 ) );
         if(draw instanceof MyBrush) {
-                    /* String color, double thickness, double x1, double y1, double x2, double y2, boolean fill, int arcW, int arcH,
-                        ArrayList<Double> xPoints, ArrayList<Double> yPoints) */
+
             drawing = new CompleteDraw(colorInHexa, ((MyBrush) draw).getThickness(), -1, -1, -1, -1,
                     ((MyBrush) draw).isFill(), -1, -1, ((MyBrush) draw).getXPoints(),
-                    ((MyBrush) draw).getYPoints(), /*gc,*/ "MyBrush", "");
+                    ((MyBrush) draw).getYPoints(), "MyBrush", "");
         }
         else if(draw instanceof MyLine) {
             drawing = new CompleteDraw(colorInHexa, ((MyLine) draw).getThickness(), ((MyLine) draw).getX1(),
                     ((MyLine) draw).getY1(), ((MyLine) draw).getX2(), ((MyLine) draw).getY2(),
-                    false, -1, -1, null, null, /*gc,*/ "MyLine", "");
+                    false, -1, -1, null, null, "MyLine", "");
         }
         else if(draw instanceof MyOval) {
             drawing = new CompleteDraw(colorInHexa, ((MyOval) draw).getThickness(), ((MyOval) draw).getX1(),
                     ((MyOval) draw).getY1(), ((MyOval) draw).getWidth(), ((MyOval) draw).getHeight(),
-                    ((MyOval) draw).toFill(), -1, -1, null, null, /*gc,*/ "MyOval", "");
+                    ((MyOval) draw).toFill(), -1, -1, null, null, "MyOval", "");
         }
         else if(draw instanceof MyRect) {
             drawing = new CompleteDraw(colorInHexa, ((MyRect) draw).getThickness(), ((MyRect) draw).getX1(),
                     ((MyRect) draw).getY1(), ((MyRect) draw).getWidth(), ((MyRect) draw).getHeight(),
-                    ((MyRect) draw).toFill(), -1, -1, null, null, /*gc,*/ "MyRect", "");
+                    ((MyRect) draw).toFill(), -1, -1, null, null, "MyRect", "");
         }
         else if(draw instanceof MyRoundRect) {
             drawing = new CompleteDraw(colorInHexa, ((MyRoundRect) draw).getThickness(), ((MyRoundRect) draw).getX1(),
                     ((MyRoundRect) draw).getY1(), ((MyRoundRect) draw).getWidth(),
                     ((MyRoundRect) draw).getHeight(), ((MyRoundRect) draw).toFill(),
                     ((MyRoundRect) draw).getArcWidth(), ((MyRoundRect) draw).getArcHeight(),
-                    null, null, /*gc,*/ "MyRoundRect", "");
+                    null, null, "MyRoundRect", "");
         }
         else if(draw instanceof TextBox) {
             drawing = new CompleteDraw(colorInHexa, ((TextBox) draw).getThickness(), ((TextBox) draw).getX(),
                     ((TextBox) draw).getY(), -1, -1,
-                    false, -1, -1, null, null, /*gc,*/ "TextBox", ((TextBox) draw).getText());
+                    false, -1, -1, null, null, "TextBox", ((TextBox) draw).getText());
             drawing.setText(((TextBox) draw).getText());
         }
         return drawing;
     }
 
+    /* Serializes an object */
     public static byte[] serialize(Object obj) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ObjectOutputStream os = new ObjectOutputStream(out);

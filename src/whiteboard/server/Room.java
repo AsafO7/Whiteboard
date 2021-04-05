@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/* This class represents a room in the server */
+
 public class Room implements Serializable {
     private final String name;
     private Handler host;

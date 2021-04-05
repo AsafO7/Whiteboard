@@ -4,6 +4,8 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
+/* RMI Client interface */
+
 public interface IClientHandler extends Remote {
     public void handleAckUsername(boolean ack) throws RemoteException;
 

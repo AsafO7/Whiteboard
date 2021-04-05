@@ -19,7 +19,6 @@ import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import whiteboard.Connection;
-import whiteboard.Packet;
 import whiteboard.server.IServerHandler;
 
 import java.awt.*;
@@ -30,67 +29,56 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.sql.*;
-import java.util.*;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class Board extends Application{
-
-    private GraphicsContext gc;
+public class Lobby extends Application{
 
     private Scene lobby;
 
-    private Button redo, undo, clear, backToLobby, exit;
-
     private Button login = new Button("Log in");
-
-    private Slider thickness;
-
-    private ColorPicker colorChooser;
 
     private InputHandler input;
     private RMIHandler rmiQueue;
+    private Socket socket;
+    private IServerHandler stub;
 
-    private Text topM = new Text("Welcome to Whiteboard! Draw your minds out!");
-
-    final String EMTER_LOBBY_TEXT = "You must be logged in before entering a lobby", CREATE_ROOM_TEXT = "You must be logged in before creating a room",
-            EMPTY_USERNAME_TEXT = "Username can't be blank.", USERNAME_EXISTS = "This username has been chosen already.",
-            PROGRAM_EXPLAINATION = "This program is a whiteboard.\nThe whiteboard is a canvas where multiple users can draw on at the same time.\n" +
-                    "First the user logs in\\registers in the database of the program, and then chooses to enter an existing lobby or create " +
-                    "one of their own.\nFrom there the user enters the whiteboard where they can draw freely on the board or add shapes and text" +
+    final String EMTER_LOBBY_TEXT = "You must be logged in before entering a lobby",
+            CREATE_ROOM_TEXT = "You must be logged in before creating a room",
+            EMPTY_USERNAME_TEXT = "Username can't be blank.",
+            USERNAME_EXISTS = "This username has been chosen already.",
+            PROGRAM_EXPLAINATION = "This program is a whiteboard.\nThe whiteboard is a canvas where multiple" +
+                    " users can draw on at the same time.\n" +
+                    "First the user logs in\\registers in the database of the program, and then chooses" +
+                    " to enter an existing lobby or create " +
+                    "one of their own.\nFrom there the user enters the whiteboard where they can draw freely" +
+                    " on the board or add shapes and text" +
                     " to it!.\nA user is also able to see other online users in the same lobby at the left side of the program.",
-            BLANK_ROOM_TITLE = "Blank room name", BLANK_ROOM_MSG = "Room name can't be blank",
-            SAME_ROOM_NAME_TITLE = "Room already exists", SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.",
-            USERNAME_TOO_LONG = "Username cannot exceed 16 characters.", ROOM_NAME_TOO_LONG = "Please choose a shorter room name.";
+            BLANK_ROOM_TITLE = "Blank room name",
+            BLANK_ROOM_MSG = "Room name can't be blank",
+            SAME_ROOM_NAME_TITLE = "Room already exists",
+            SAME_ROOM_NAME_MSG = "There's a room with that name already, please choose a different name.",
+            USERNAME_TOO_LONG = "Username cannot exceed 16 characters.",
+            ROOM_NAME_TOO_LONG = "Please choose a shorter room name.";
 
-    private final String[] shapes = {"Brush", "Line", "Oval", "Rectangle", "Rounded Rectangle", "Text"};
-    private final ComboBox<String> shapeChooser = new ComboBox<>();
-    private final Stack<MyDraw> myDraws = new Stack<>();
-    private final Stack<MyDraw> deletedDraws = new Stack<>();
-
-    private boolean toFill = false, isRoundRectChosen = false;
     public boolean isLoggedIn = false;
-    private Color color = Color.BLACK; // Default color is black.
 
     private HBox bottomM = new HBox();
 
-    private final int CANVAS_HEIGHT = 590, CANVAS_WIDTH = 900, DEFAULT_ARC_VALUE = 10, TEXT_WRAPPING_WIDTH = 200;
+    private final int TEXT_WRAPPING_WIDTH = 200;
 
     public static final String DATABASE_URL = "jdbc:sqlite:saved_drawing.db";
-
-    private Socket socket;
-    private IServerHandler stub;
 
     public static void main(String[] args) { launch(args); }
 
     @Override
     public void start(Stage stage) throws IOException {
 
-        final int GRID_MENU_SPACING = 10, LEFT_MENU_WIDTH = 200, RIGHT_MENU_WIDTH = 300, TOP_MENU_HEIGHT = 60,
-                TOOLBAR_HEIGHT = 60, DRAWING_TEXT_DIALOG_WINDOW_WIDTH = 300,
-                DRAWING_TEXT_DIALOG_WINDOW_HEIGHT = 200, CHAT_MESSAGE_WRAPPING_WIDTH = 230, EXPLAIN_TEXT_WRAPPING_WIDTH = 280,
-                ROOM_SPACING = 20, BOTTOM_MENU_LOBBY_LEFT = 420, BOTTOM_MENU_LOBBY_SPACING = 75, LOGIN_WINDOW_WIDTH = 250, LOGIN_WINDOW_HEIGHT = 120,
-                MIN_LINE_THICKNESS = 1, MAX_LINE_THICKNESS = 15, CREATE_ROOM_WINDOW_WIDTH = 200, CREATE_ROOM_WINDOW_HEIGHT = 90,
+        final int GRID_MENU_SPACING = 10, TOOLBAR_HEIGHT = 60, EXPLAIN_TEXT_WRAPPING_WIDTH = 280,
+                ROOM_SPACING = 20, BOTTOM_MENU_LOBBY_SPACING = 75,
+                LOGIN_WINDOW_WIDTH = 250, LOGIN_WINDOW_HEIGHT = 120,
+                CREATE_ROOM_WINDOW_WIDTH = 200,
+                CREATE_ROOM_WINDOW_HEIGHT = 90,
                 USERNAME_CHAR_LIM = 16, ROOM_NAME_MAX_LENGTH = 100;
 
 
@@ -107,20 +95,15 @@ public class Board extends Application{
         title.getChildren().add(welcome);
         welcome.setFill(Color.GREEN);
         title.setStyle(CssLayouts.cssTopLayout);
-        title.setMinHeight(TOP_MENU_HEIGHT);
+        title.setMinHeight(height/13);
+        title.setMaxHeight(height/13);
 
         /******************************** Left menu ********************************/
 
-        AnchorPane lobbyLeftMenu = new AnchorPane();
+        VBox lobbyLeftMenu = new VBox();
         lobbyLeftMenu.setStyle(CssLayouts.cssBorder);
-        lobbyLeftMenu.setMaxWidth(LEFT_MENU_WIDTH);
-        lobbyLeftMenu.setMinWidth(LEFT_MENU_WIDTH);
-//        Image brush = new Image("brushes-3129361_640.jpg");
-//        ImageView leftMenuImage = new ImageView(brush);
-//        leftMenuImage.fitWidthProperty().bind(lobbyLeftMenu.widthProperty());
-//        leftMenuImage.fitHeightProperty().bind(lobbyLeftMenu.heightProperty());
-//        lobbyLeftMenu.getChildren().add(leftMenuImage);
-        //TODO: add a picture here of a brush maybe?
+        lobbyLeftMenu.setMaxWidth(width/7);
+        lobbyLeftMenu.setMinWidth(width/7);
 
         /******************************** Right menu - info ********************************/
 
@@ -129,28 +112,22 @@ public class Board extends Application{
         toKnow.setWrappingWidth(EXPLAIN_TEXT_WRAPPING_WIDTH);
         VBox info = new VBox();
         info.getChildren().add(toKnow);
-        setLayoutWidth(info, RIGHT_MENU_WIDTH);
-        //TODO: check out why the fuck it doesn't work as a whole string.
-        info.setStyle(info.getStyle() + ";\n-fx-padding: 6 0 0 6;");
+        info.setStyle(CssLayouts.cssBoardRightMenu);
+        info.setMaxWidth(width/4.5);
+        info.setMinWidth(width/4.5);
 
-        /******************************** Center menu ********************************/
+        /******************************** Center menu - rooms list ********************************/
 
         BorderPane mainLobby = new BorderPane();
         ScrollPane lobbyCenter = new ScrollPane();
         VBox lobbies = new VBox();
-//        empty1.getChildren().add(new Text("AAAAA"));
-//        empty2.getChildren().add(new Text("BBBB"));
-//        empty1.setStyle(CssLayouts.cssBorder);
-//        empty2.setStyle(CssLayouts.cssBorder);
         mainLobby.setCenter(lobbyCenter);
-//        test.setBottom(empty1);
-//        test.setTop(empty2);
         lobbyCenter.setStyle(CssLayouts.cssBorder);
         lobbyCenter.setContent(lobbies);
         lobbyCenter.setVvalue(1.0);
         lobbyCenter.setFitToWidth(true);
 
-        /******************************** Bottom menu ********************************/
+        /******************************** Bottom menu - UI ********************************/
 
         Button createR = new Button("Create room"), refreshRooms = new Button("Refresh rooms"),
         loadDrawing = new Button("Load drawing");
@@ -159,6 +136,8 @@ public class Board extends Application{
         bottomM.getChildren().addAll(createR, loadDrawing, refreshRooms, login);
         bottomM.setAlignment(Pos.CENTER);
         bottomM.setStyle(CssLayouts.cssBottomLayout);
+        bottomM.setMaxHeight(height/13);
+        bottomM.setMinHeight(height/13);
 
         /******************************* Load drawing button event handler ******************************/
 
@@ -209,9 +188,7 @@ public class Board extends Application{
                         input.setRoomName(roomNameTextBox.getText());
 
                         List<CompleteDraw> completeDraws;
-                        //boolean tableExists = true;
-                        //java.sql.Connection connection = null;
-                        try (java.sql.Connection connection = DriverManager.getConnection(Board.DATABASE_URL)) {
+                        try (java.sql.Connection connection = DriverManager.getConnection(Lobby.DATABASE_URL)) {
 
                             //TODO: Check if the db exists, if it doesn't tell the user to jump off a 1k height bridge.
 //                            File file = new File (dbName);
@@ -228,7 +205,7 @@ public class Board extends Application{
 //
 //                            }
                             Statement statement = connection.createStatement();
-                            statement.setQueryTimeout(2);  // set timeout to 30 sec.
+                            statement.setQueryTimeout(2);  // set timeout to 2 sec.
                             ResultSet resultSet = statement.executeQuery("SELECT * FROM save");
 
                             resultSet.next();
@@ -237,7 +214,7 @@ public class Board extends Application{
                             completeDraws = (List<CompleteDraw>) deserialize(arr);
                             rmiQueue.put(() -> {
                                 try {
-                                    stub.handleCreateRoomWithDrawings(input.getRoomName(), completeDraws); /* There once was a return here. */
+                                    stub.handleCreateRoomWithDrawings(input.getRoomName(), completeDraws);
                                 } catch (RemoteException remoteException) {
                                     remoteException.printStackTrace();
                                 }
@@ -249,38 +226,6 @@ public class Board extends Application{
                         }
                     }
                     dialog.close();
-//                    dialog.close();
-//                    List<CompleteDraw> completeDraws;
-//                    //boolean tableExists = true;
-//                    //java.sql.Connection connection = null;
-//                    try (java.sql.Connection connection = DriverManager.getConnection(Board.DATABASE_URL)) {
-//
-//                        //TODO: Check if the db exists, if it doesn't tell the user to jump off a 1k height bridge.
-//                        Statement statement = connection.createStatement();
-//                        statement.setQueryTimeout(2);  // set timeout to 30 sec.
-//                        ResultSet resultSet = statement.executeQuery("SELECT * FROM save");
-//
-//
-//                        // get ResultSet's meta data
-//                        //ResultSetMetaData metaData = resultSet.getMetaData();
-//                        //int numberOfColumns = metaData.getColumnCount();
-//
-//                        //if(resultSet.next()) {
-//                        resultSet.next();
-//                        byte[] arr = resultSet.getBytes("DRAWING");
-////                    InputStream is = blob.getBinaryStream();
-////                    byte[] arr = IOUtils.toByteArray(is);
-//                        completeDraws = (List<CompleteDraw>) deserialize(arr);
-//                        try {
-//                            outQueue.put(Packet.createRoomWithDrawings(input.getRoomName(), completeDraws));
-//                        } catch (InterruptedException exception) {
-//                            exception.printStackTrace();
-//                        }
-//
-//                    } catch (SQLException | IOException | ClassNotFoundException sqlException) {
-//                        sqlException.printStackTrace();
-//                        System.exit(1);
-//                    }
                 });
             }
             else {
@@ -404,7 +349,7 @@ public class Board extends Application{
                     signIn.close();
                     rmiQueue.put(() -> {
                         try {
-                            stub.handleRequestUsername(input.username); /* There once was a return here. */
+                            stub.handleRequestUsername(input.username);
                         } catch (RemoteException remoteException) {
                             remoteException.printStackTrace();
                         }
@@ -423,19 +368,12 @@ public class Board extends Application{
         lobbyLayout.setCenter(mainLobby);
         lobbyLayout.setBottom(bottomM);
 
-        AnchorPane aPane = new AnchorPane();
-        AnchorPane.setLeftAnchor(lobbyLayout, 0.0);
-        AnchorPane.setRightAnchor(lobbyLayout, 0.0);
-        AnchorPane.setTopAnchor(lobbyLayout, 0.0);
-        AnchorPane.setBottomAnchor(lobbyLayout, 0.0);
-
         lobby = new Scene(lobbyLayout, width, height);
 
     /******************************** Lobby scene - End ********************************/
 
     /********************************** Setting up socket ************************************/
         try {
-            //TODO: Change to RMI communication (define the 'stub')
             socket = new Socket(Connection.DOMAIN, Connection.PORT);
 
             int rmiRegistryPort = 0;
@@ -488,7 +426,7 @@ public class Board extends Application{
 
         rmiQueue.put(() -> {
             try {
-                stub.handleGetRooms();
+                stub.handleGetRooms(); /* get rooms list */
             } catch (RemoteException e) {
                 e.printStackTrace();
             }
@@ -497,13 +435,6 @@ public class Board extends Application{
 
 
     /******************************** Functions ********************************/
-
-    private void setLayoutWidth(Pane p, int width) {
-        if(p == null) { return; }
-        p.setStyle(CssLayouts.cssBorder);
-        p.setMaxWidth(width);
-        p.setMinWidth(width);
-    }
 
     // Displays an alert message to the user.
     public void displayAlert(String title, String text) {
@@ -539,7 +470,5 @@ public class Board extends Application{
             }
         });
     }
-
-    //TODO: make the cursor look like a pen.
 }
 

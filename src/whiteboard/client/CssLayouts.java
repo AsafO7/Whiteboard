@@ -1,5 +1,7 @@
 package whiteboard.client;
 
+/* CSS code for styling JavaFX elements. */
+
 public class CssLayouts {
     public static final String cssBorder = "-fx-border-color: black;\n" +
             "-fx-border-width: 3;\n" +
@@ -28,9 +30,11 @@ public class CssLayouts {
             "-fx-fill: #3B92D5";
 
     public static final String cssLeftMenu = cssBorder + ";\n-fx-font-weight: bold;\n" +
-            "-fx-color: #E54487;\n" +
+            "-fx-padding: 3 0 0 10;\n" +
             "-fx-font-size: 16";
     public static final String cssLobbiesStyle = cssBorder + ";\n-fx-font-size: 18;\n" +
             "-fx-font-weight: bold;\n" +
             "-fx-border-color: gray";
+
+    public static final String cssBoardRightMenu = CssLayouts.cssBorder + ";\n-fx-padding: 6 0 0 6;";
 }

@@ -8,6 +8,8 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
+/* The RMI interface of the server */
+
 public interface IServerHandler extends Remote {
     public void setClientStub(IClientHandler stub) throws RemoteException;
 

@@ -5,6 +5,8 @@ import javafx.scene.paint.Color;
 
 import java.io.Serializable;
 
+/* Basic class with traits all drawings have. */
+
 public abstract class MyDraw implements Serializable {
 
     private final Color color;

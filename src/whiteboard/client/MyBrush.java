@@ -4,9 +4,10 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import java.util.ArrayList;
 
+/* This class represents a freely drawn drawing. */
+
 public class MyBrush extends MyDraw {
 
-    //private boolean hasPathBegun = false;
     private final boolean fill;
     private ArrayList<Double> xPoints = new ArrayList<>();
     private ArrayList<Double> yPoints = new ArrayList<>();
@@ -43,20 +44,6 @@ public class MyBrush extends MyDraw {
         this.yPoints = pathY;
     }
 
-//    @Override
-//    public void Draw(GraphicsContext g) {
-//        g.setStroke(this.getColor());
-//        if(!hasPathBegun) {
-//            g.beginPath();
-//            g.lineTo(this.getX1(), this.getY1());
-//            hasPathBegun = true;
-//        }
-//        g.lineTo(this.getX2(), this.getY2());
-//        g.stroke();
-//        g.stroke
-//    }
-
-    //TODO: potentially install a 3rd party library for efficiency.
     private double[] convertDouble(ArrayList<Double> arr) {
         double[] p = new double[arr.size()];
         for(int i = 0; i < p.length; i++) {
@@ -67,7 +54,6 @@ public class MyBrush extends MyDraw {
 
     @Override
     public void Draw(GraphicsContext g) {
-        /* you can loop but it's not efficient */
         g.setLineWidth(getThickness());
         g.setStroke(this.getColor());
         g.setFill(this.getColor());
