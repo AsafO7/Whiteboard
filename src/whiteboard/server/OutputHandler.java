@@ -7,8 +7,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import jdk.nashorn.internal.ir.Block;
 import whiteboard.Connection;
-import whiteboard.Packet;
-import whiteboard.SyncQueue;
+import whiteboard.RoomNameAndDrawings;
 import whiteboard.client.InputHandler;
 
 import java.io.IOException;

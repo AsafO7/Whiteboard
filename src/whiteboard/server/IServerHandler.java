@@ -1,6 +1,6 @@
 package whiteboard.server;
 
-import whiteboard.Packet;
+import whiteboard.RoomNameAndDrawings;
 import whiteboard.client.CompleteDraw;
 import whiteboard.client.IClientHandler;
 

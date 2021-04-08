@@ -1,7 +1,7 @@
 package whiteboard.server;
 
 import javafx.application.Platform;
-import whiteboard.Packet;
+import whiteboard.RoomNameAndDrawings;
 import whiteboard.client.CompleteDraw;
 import whiteboard.client.IClientHandler;
 
@@ -115,9 +115,6 @@ public class Handler implements IServerHandler {
             else { // The room is not empty
                 room.setHost(room.getUsers().get(0)); // Appoint the first user in the room as the new host
             }
-        }
-        else {
-            //TODO: do some error handling if we call this function when we are not in a room
         }
     }
 

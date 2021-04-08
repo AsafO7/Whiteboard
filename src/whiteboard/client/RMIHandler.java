@@ -2,7 +2,7 @@
 
 package whiteboard.client;
 
-import whiteboard.Packet;
+import whiteboard.RoomNameAndDrawings;
 
 import java.rmi.RemoteException;
 import java.util.concurrent.BlockingQueue;
