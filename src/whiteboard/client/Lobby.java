@@ -43,7 +43,7 @@ public class Lobby extends Application{
     private Socket socket;
     private IServerHandler stub;
 
-    final String EMTER_LOBBY_TEXT = "You must be logged in before entering a lobby",
+    final String ENTER_LOBBY_TEXT = "You must be logged in before entering a lobby",
             CREATE_ROOM_TEXT = "You must be logged in before creating a room",
             EMPTY_USERNAME_TEXT = "Username can't be blank.",
             USERNAME_EXISTS = "This username has been chosen already.",
@@ -419,10 +419,10 @@ public class Lobby extends Application{
 
         stage.setTitle("Lobby");
         stage.setScene(lobby);
-        stage.sizeToScene();
+        //stage.sizeToScene();
         stage.show();
-        stage.setMinWidth(stage.getWidth());
-        stage.setMinHeight(stage.getHeight());
+        //stage.setMinWidth(stage.getWidth());
+        //stage.setMinHeight(stage.getHeight());
 
         rmiQueue.put(() -> {
             try {

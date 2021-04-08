@@ -156,12 +156,17 @@ public class InputHandler implements IClientHandler {
     /* Takes care of the acknowledgement of joining a room */
     public void handleAckJoinRoom(boolean ack) {
         if (ack) {
-
+            handleNewRoomTransfer(true);
+            try {
+                stub.handleRequestCurrDrawings();
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
         }
         else {
             rmiQueue.put(() -> {
                 try {
-                    stub.handleGetRooms(); /* There once was a return here. */
+                    stub.handleGetRooms();
                 } catch (RemoteException e) {
                     e.printStackTrace();
                 }
@@ -204,16 +209,16 @@ public class InputHandler implements IClientHandler {
             if(board.isLoggedIn) {
                 rmiQueue.put(() -> {
                     try {
-                        stub.handleAddUserToRoom(roomsNames.get(i)); /* There once was a return here. */
-                        handleNewRoomTransfer(true);
-                        stub.handleRequestCurrDrawings();
+                        stub.handleAddUserToRoom(roomsNames.get(i));
+                        //handleNewRoomTransfer(true);
+                        //stub.handleRequestCurrDrawings();
                     } catch (RemoteException remoteException) {
                         remoteException.printStackTrace();
                     }
                 });
             }
             else {
-                board.displayAlert("", board.EMTER_LOBBY_TEXT);
+                board.displayAlert("", board.ENTER_LOBBY_TEXT);
             }
         });
         lobby.getChildren().get(i).setOnMouseEntered(e -> {

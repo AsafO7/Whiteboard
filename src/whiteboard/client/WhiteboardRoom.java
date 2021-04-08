@@ -146,7 +146,7 @@ public class WhiteboardRoom {
 
         rmiQueue.put(() -> {
             try {
-                stub.handleGetRooms(); /* There once was a return here. */
+                stub.handleGetRooms();
             } catch (RemoteException e) {
                 e.printStackTrace();
             }

@@ -44,7 +44,7 @@ public class Packet implements Serializable {
 
     /************************************* Data types *************************************/
 
-    public static class RoomNameAndDrawings implements Serializable{
+    public static class RoomNameAndDrawings implements Serializable {
         public String roomName;
         public List<CompleteDraw> drawings;
 

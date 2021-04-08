@@ -96,7 +96,6 @@ public class Handler implements IServerHandler {
                 List<String> users = new ArrayList<>();
                 for (Handler handler : room.getUsers()) {
                     users.add(handler.username);
-                    System.out.println(handler.username);
                 }
                 for (Handler handler : room.getUsers()) {
                     if (handler != this) {
